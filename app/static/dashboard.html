@@ -1,0 +1,2548 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>AlgoEdge • Pro</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <link rel="stylesheet" href="/static/dashboard.mobile.css" media="(max-width: 640px)" />
+  <style>
+    :root {
+      /* DARK TEAL THEME (User Preference) */
+      --bg: #1e3434;
+      --cyan: #2c5e01;
+      --cyan-dim: rgba(34, 211, 238, 0.1);
+      --glass: rgba(0, 0, 0, 0.2);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: 'Inter', system-ui, sans-serif;
+      /* Dark mesh with subtle light color */
+      background-image:
+        radial-gradient(at 0% 0%, rgba(34, 211, 238, 0.12) 0px, transparent 42%),
+        radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.1) 0px, transparent 45%),
+        radial-gradient(at 50% 50%, rgba(34, 211, 238, 0.06) 0px, transparent 55%),
+        radial-gradient(at 0% 100%, rgba(16, 185, 129, 0.12) 0px, transparent 42%);
+      background-size: 100% 100%;
+      background-attachment: fixed;
+      animation: aurora 20s ease infinite alternate;
+      overflow-x: hidden;
+    }
+
+    /* Headings */
+    h1,
+    h2,
+    h3 {
+      font-family: 'Outfit', sans-serif;
+      letter-spacing: -0.02em;
+    }
+
+    /* Glass Effect */
+    .glass {
+      background: var(--glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.5);
+      border-radius: 99px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.8);
+    }
+
+    /* Animations */
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes pulse-glow {
+
+      0%,
+      100% {
+        box-shadow: 0 0 15px var(--cyan-dim);
+      }
+
+      50% {
+        box-shadow: 0 0 25px rgba(34, 211, 238, 0.3);
+      }
+    }
+
+    /* Background Animation */
+    @keyframes aurora {
+      0% {
+        background-position: 0% 50%;
+      }
+
+      50% {
+        background-position: 100% 50%;
+      }
+
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    @keyframes status-glow {
+
+      0%,
+      100% {
+        box-shadow: 0 0 5px rgba(234, 179, 8, 0.2);
+        opacity: 0.8;
+      }
+
+      50% {
+        box-shadow: 0 0 15px rgba(234, 179, 8, 0.5);
+        opacity: 1;
+      }
+    }
+
+    @keyframes error-glow {
+
+      0%,
+      100% {
+        box-shadow: 0 0 5px rgba(244, 63, 94, 0.2);
+      }
+
+      50% {
+        box-shadow: 0 0 15px rgba(244, 63, 94, 0.6);
+      }
+    }
+
+    .badge-highlight-exiting {
+      animation: status-glow 1.5s ease-in-out infinite;
+      background: rgba(234, 179, 8, 0.2) !important;
+      color: #fde047 !important;
+      border: 1px solid rgba(234, 179, 8, 0.4) !important;
+      text-shadow: 0 0 8px rgba(234, 179, 8, 0.4);
+    }
+
+    .badge-highlight-error {
+      animation: error-glow 1s ease-in-out infinite;
+      background: rgba(244, 63, 94, 0.2) !important;
+      color: #fda4af !important;
+      border: 1px solid rgba(244, 63, 94, 0.4) !important;
+    }
+
+    @keyframes target-glow {
+
+      0%,
+      100% {
+        box-shadow: 0 0 5px rgba(16, 185, 129, 0.3);
+      }
+
+      50% {
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.7);
+      }
+    }
+
+    @keyframes sl-glow {
+
+      0%,
+      100% {
+        box-shadow: 0 0 5px rgba(244, 63, 94, 0.3);
+      }
+
+      50% {
+        box-shadow: 0 0 20px rgba(244, 63, 94, 0.7);
+      }
+    }
+
+    .badge-highlight-target {
+      animation: target-glow 1.5s ease-in-out infinite;
+      background: rgba(16, 185, 129, 0.2) !important;
+      color: #6ee7b7 !important;
+      border: 1px solid rgba(16, 185, 129, 0.5) !important;
+      text-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+    }
+
+    .badge-highlight-sl {
+      animation: sl-glow 1.5s ease-in-out infinite;
+      background: rgba(244, 63, 94, 0.2) !important;
+      color: #fda4af !important;
+      border: 1px solid rgba(244, 63, 94, 0.5) !important;
+      text-shadow: 0 0 8px rgba(244, 63, 94, 0.4);
+    }
+
+    .badge-highlight-completed {
+      background: rgba(34, 211, 238, 0.15) !important;
+      color: #7dd3fc !important;
+      border: 1px solid rgba(34, 211, 238, 0.4) !important;
+      box-shadow: 0 0 10px rgba(34, 211, 238, 0.2);
+    }
+
+    /* Stars */
+    .star {
+      position: absolute;
+      background: #0f172a;
+      /* Dark stars for light sky */
+      border-radius: 50%;
+      opacity: 0;
+      animation: twinkle var(--duration) ease-in-out infinite;
+      animation-delay: var(--delay);
+    }
+
+    @keyframes twinkle {
+      0% {
+        opacity: 0;
+        transform: scale(0.5);
+      }
+
+      50% {
+        opacity: var(--opacity);
+        transform: scale(1.2);
+      }
+
+      100% {
+        opacity: 0;
+        transform: scale(0.5);
+      }
+    }
+
+    .animate-enter {
+      animation: fade-in 0.4s ease-out forwards;
+    }
+
+    .delay-100 {
+      animation-delay: 0.1s;
+    }
+
+    .delay-200 {
+      animation-delay: 0.2s;
+    }
+
+    /* Components */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.85rem;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: all 0.2s;
+    }
+
+    .badge:hover {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.25rem;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.03);
+      color: #94a3b8;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: white;
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-light {
+      background: rgb(2, 33, 46);
+      color: #64748b;
+      border: 1px solid #e2e8f0;
+    }
+
+    .btn-light:hover {
+      background: #023e64;
+      color: #0f172a;
+      border-color: #cbd5e1;
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.2);
+      color: white;
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    /* Tables - Dark Theme Override */
+    .table-container {
+      border-radius: 0;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(15, 23, 42, 0.6);
+      /* Dark Slate with opacity */
+      backdrop-filter: blur(12px);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      background: rgba(0, 0, 0, 0.2);
+      color: #f6f5f9;
+      /* Slate 400 */
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      padding: 0.22rem 0.5rem;
+      line-height: 1.0;
+      text-align: left;
+    }
+
+    td {
+      padding: 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: #f1f5f9;
+      /* Slate 100 */
+      font-size: 0.9rem;
+    }
+
+    /* Compact body rows for more visible entries */
+    .table-container tbody td {
+      padding: 0.22rem 0.45rem !important;
+      line-height: 1.05;
+      font-size: 0.74rem;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Inputs */
+    .input-field {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: white;
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      width: 100%;
+      transition: all 0.2s;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15);
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    /* Mono font areas */
+    .font-mono {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    /* Global overrides for light theme adaptation */
+    .text-white {
+      color: var(--text-main) !important;
+    }
+
+    /* Revert text-white for buttons/badges which usually have dark backgrounds */
+    .btn,
+    .badge,
+    .bg-emerald-500,
+    .bg-rose-500,
+    .bg-blue-500,
+    .bg-cyan-500 {
+      color: white !important;
+      /* Force white text on buttons */
+    }
+
+    .btn .text-white,
+    .badge .text-white {
+      color: white !important;
+    }
+
+    /* Fix text colors inside dark tables */
+    .table-container .text-white {
+      color: white !important;
+    }
+
+    .table-container .text-slate-400 {
+      color: #94a3b8 !important;
+    }
+
+    .table-container .text-slate-500 {
+      color: #cbd5e1 !important;
+    }
+
+    /* Fix text colors inside dark modals */
+    #credModal .text-white,
+    #cfgModal .text-white {
+      color: white !important;
+    }
+
+    #credModal .text-slate-400,
+    #cfgModal .text-slate-400 {
+      color: #94a3b8 !important;
+    }
+
+    #credModal .text-slate-500,
+    #cfgModal .text-slate-500 {
+      color: #cbd5e1 !important;
+    }
+
+    /* Fix text colors inside Dark Navbar */
+    nav .text-white {
+      color: white !important;
+    }
+
+    nav .text-slate-200 {
+      color: #e2e8f0 !important;
+    }
+
+    nav .text-slate-400 {
+      color: #94a3b8 !important;
+    }
+
+    /* Top bar sizing guardrails (responsive, prevents oversized buttons on large screens) */
+    .topbar-row {
+      height: clamp(46px, 4.5vw, 60px);
+    }
+
+    nav .topbar-actions {
+      gap: clamp(8px, 1vw, 14px);
+    }
+
+    nav .btn {
+      font-size: clamp(9px, 0.75vw, 11px) !important;
+      padding: clamp(3px, 0.5vw, 7px) clamp(7px, 0.85vw, 11px) !important;
+      border-radius: clamp(5px, 0.7vw, 8px) !important;
+      white-space: nowrap;
+    }
+
+    nav .topbar-actions .action-btn {
+      font-size: clamp(9px, 0.75vw, 11px) !important;
+      padding: clamp(2px, 0.45vw, 6px) clamp(7px, 0.8vw, 11px) !important;
+      border-radius: clamp(6px, 0.75vw, 9px) !important;
+    }
+
+    nav .topbar-actions .cfg-btn {
+      padding-top: clamp(2px, 0.35vw, 5px) !important;
+      padding-bottom: clamp(2px, 0.35vw, 5px) !important;
+    }
+
+    nav #zbadge,
+    nav #wsbadge {
+      font-size: clamp(8px, 0.7vw, 9px);
+      padding: clamp(3px, 0.5vw, 7px) clamp(7px, 0.85vw, 11px);
+    }
+
+    /* WS status pill */
+    .ws-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 1px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    .ws-pill svg {
+      width: 13px;
+      height: 13px;
+      flex: 0 0 auto;
+    }
+
+    .ws-pill svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .ws-live {
+      background: linear-gradient(135deg, #e9fff6 0%, #dff9ef 100%);
+      color: #0b6b34;
+      border: 1px solid rgba(16, 185, 129, 0.45);
+      box-shadow: 0 6px 18px rgba(16, 185, 129, 0.25);
+    }
+
+    .ws-offline {
+      background: #ffecec;
+      color: #c81e1e;
+      border: 1px solid rgba(248, 113, 113, 0.45);
+      box-shadow: 0 6px 16px rgba(248, 113, 113, 0.18);
+    }
+
+    /* Credentials modal compact sizing */
+    #credModal .cred-card {
+      max-height: 90vh;
+      overflow: auto;
+    }
+
+    #cfgModal .cfg-card {
+      max-height: 90vh;
+      overflow: auto;
+    }
+
+    #cfgModal .input-field {
+      padding: 0.4rem 0.6rem;
+      font-size: 0.8rem;
+    }
+
+    #cfgModal label {
+      margin-bottom: 0.25rem !important;
+      font-size: 0.65rem !important;
+    }
+
+    /* Make time picker icon visible */
+    #cfgModal input[type="time"] {
+      color-scheme: dark;
+      padding-right: 2.2rem;
+    }
+
+    #cfgModal input[type="time"]::-webkit-calendar-picker-indicator {
+      filter: invert(1) brightness(3) saturate(0) drop-shadow(0 0 2px rgba(255, 255, 255, 0.6));
+      opacity: 1;
+    }
+
+    nav .user-pill {
+      padding: clamp(3px, 0.5vw, 7px) clamp(7px, 0.85vw, 11px);
+      font-size: clamp(9px, 0.7vw, 10px);
+    }
+
+    nav .logo-box {
+      width: clamp(34px, 3vw, 40px) !important;
+      height: clamp(34px, 3vw, 40px) !important;
+    }
+
+    .logo-wrap {
+      margin-left: 8px;
+    }
+
+    .logo-box svg {
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+    }
+
+              <span class="logo-dot"></span>
+              <span class="logo-bar"></span>
+              <span class="logo-one"></span>
+      font-size: clamp(14px, 1.4vw, 16px) !important;
+    }
+
+    /* iOneAlgo logo mark */
+    .logo-box {
+      position: relative;
+    }
+
+    .logo-dot,
+    .logo-bar,
+    .logo-one {
+      position: absolute;
+      background: #ffffff;
+      border-radius: 999px;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
+    }
+
+    .logo-dot {
+      width: 18%;
+      height: 18%;
+      top: 18%;
+      left: 26%;
+    }
+
+    .logo-bar {
+      width: 18%;
+      height: 46%;
+      top: 38%;
+      left: 26%;
+    }
+
+    .logo-one {
+      width: 18%;
+      height: 62%;
+      top: 22%;
+      right: 24%;
+    }
+
+    nav .brand-title {
+      font-size: clamp(16px, 1.7vw, 19px);
+    }
+
+    nav .brand-sub {
+      font-size: clamp(8px, 0.75vw, 9px);
+    }
+
+    /* Keep header metrics on a single line */
+    .metrics-row {
+      flex-wrap: nowrap;
+      gap: 0.5rem;
+    }
+
+    /* Net PnL pill */
+    .net-pnl-pill {
+      background: #e8fff1;
+      color: #0f7a3a;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      box-shadow: 0 6px 18px rgba(16, 185, 129, 0.25);
+      border-radius: 999px;
+      padding: 5px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .net-pnl-pill .pnl-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #127c3c;
+      opacity: 0.9;
+    }
+
+    .net-pnl-pill .pnl-value {
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.01em;
+    }
+
+    /* Screen-specific sizing to keep top bar compact */
+    @media (max-width: 640px) {
+      .topbar-row {
+        height: 52px;
+        padding-left: 12px;
+        padding-right: 12px;
+        
+
+      }
+.btn {
+    min-height: 42px;
+    font-size: 13px !important;
+  }
+
+  .badge {
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+
+  /* Table header sticky rakho */
+  table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+  }
+      /* Mobile 3-dot menu for topbar actions (restores access to hidden buttons) */
+      .topbar-row {
+        position: relative;
+        
+      }
+      .logo-wrap {
+    gap: 8px;
+  }
+
+  .brand-title {
+    font-size: 19px !important;
+  }
+
+  .brand-sub {
+    font-size: 9px !important;
+  }
+
+      .topbar-more {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #e2e8f0;
+        flex: 0 0 auto;
+      }
+
+      .topbar-actions {
+    display: none;
+    position: absolute;
+    right: 12px;
+    top: calc(100% + 8px);
+    width: 92vw;
+    max-width: 380px;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px;
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+    z-index: 100;
+  }
+
+      .topbar-actions.is-open {
+        display: flex;
+      }
+      .topbar-actions.is-open > * {
+    width: 100% !important;
+    justify-content: center;
+    padding: 11px 14px;
+    font-size: 13.5px !important;
+  }
+
+      /* Force-show action items on xs when menu is open (override Tailwind hidden classes) */
+      .topbar-actions.is-open .user-pill,
+      .topbar-actions.is-open #zbadge,
+      .topbar-actions.is-open #wsbadge,
+      .topbar-actions.is-open #restartTradingBtn,
+      .topbar-actions.is-open #killBtn {
+        display: inline-flex !important;
+      }
+
+      .topbar-actions > * {
+        width: 100%;
+        justify-content: center;
+      }
+
+      nav .btn {
+        font-size: 12px !important;
+        padding: 8px 12px !important;
+      }
+
+      nav #zbadge,
+      nav #wsbadge {
+        font-size: 9px;
+        padding: 4px 8px;
+      }
+
+      /* Keep the alerts table container fully attached to the screen even on pinch-zoom */
+      .table-container {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .table-container .overflow-x-auto {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+        /* allow page vertical scroll while still enabling horizontal drag on table */
+        touch-action: pan-x pan-y pinch-zoom;
+      }
+
+      .table-container table {
+        width: max-content;
+        min-width: 100%;
+      }
+
+      /* Make more columns visible on very small screens */
+      .table-container th,
+      .table-container td {
+        padding: 0.18rem 0.35rem !important;
+        font-size: 10px !important;
+        line-height: 1.15 !important;
+      }
+
+      .table-container td[data-field="ltp"] {
+        font-size: 14px !important;
+        line-height: 1.1 !important;
+      }
+    }
+
+    @media (min-width: 1024px) and (max-width: 1439px) {
+      .topbar-row {
+        height: 56px;
+      }
+    }
+
+    @media (min-width: 1440px) {
+      .topbar-row {
+        height: 58px;
+      }
+
+      nav .btn {
+        font-size: 11px !important;
+        padding: 5px 10px !important;
+      }
+
+      nav #zbadge,
+      nav #wsbadge {
+        font-size: 10px;
+        padding: 5px 10px;
+      }
+    }
+  </style>
+</head>
+
+<body class="selection:bg-cyan-500/30 selection:text-cyan-200">
+
+  <!-- Stars Container -->
+  <div id="stars" class="fixed inset-0 pointer-events-none z-0"></div>
+
+  <nav class="fixed top-0 w-full z-50 bg-[#0f172a]/95 backdrop-blur-xl border-b border-white/10 shadow-lg">
+    <div class="max-w-none w-full px-0">
+      <div class="topbar-row flex items-center justify-between">
+        <!-- Logo -->
+        <div class="logo-wrap flex items-center gap-3">
+          <div class="relative group">
+            <div
+              class="absolute -inset-1 bg-gradient-to-r from-cyan-400 to-blue-600 rounded-lg blur opacity-40 group-hover:opacity-75 transition duration-200">
+            </div>
+            <div
+              class="logo-box relative bg-transparent border-0 rounded-none w-10 h-10 flex items-center justify-center shadow-none">
+              <svg class="w-10 h-10" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#0ea5e9" />
+                    <stop offset="100%" stop-color="#1e40af" />
+                  </linearGradient>
+                  <linearGradient id="arrowGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#0ea5e9" />
+                    <stop offset="100%" stop-color="#1e3a8a" />
+                  </linearGradient>
+                </defs>
+                <!-- bars -->
+                <rect x="10" y="38" width="6" height="12" rx="2" fill="url(#barGrad)" />
+                <rect x="20" y="32" width="6" height="18" rx="2" fill="url(#barGrad)" />
+                <rect x="30" y="26" width="6" height="24" rx="2" fill="url(#barGrad)" />
+                <rect x="40" y="18" width="6" height="32" rx="2" fill="url(#barGrad)" />
+                <!-- arrow -->
+                <path d="M12 34 C22 26, 30 22, 44 14" stroke="url(#arrowGrad)" stroke-width="4" stroke-linecap="round" fill="none" />
+                <path d="M46 10 L52 20 L40 18 Z" fill="url(#arrowGrad)" />
+              </svg>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex flex-col">
+              <span class="brand-title text-2xl font-bold font-serif text-white tracking-tight leading-none font-[Outfit]">
+                IoneAlgo
+              </span>
+              <span
+                class="brand-sub text-[10px] font-bold text-cyan-400 tracking-[0.2em] leading-none mt-0.5">PRO
+                TERMINAL</span>
+            </div>
+
+            <!-- Mobile: 3-line toggle next to brand -->
+            <button id="topbarMoreBtn" class="topbar-more sm:hidden" aria-expanded="false" aria-controls="topbarActions" title="Menu">
+              <i class="fa-solid fa-bars"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Side -->
+        <div id="topbarActions" class="topbar-actions flex items-center gap-3 lg:gap-5">
+          <!-- User ID Pill -->
+          <div
+            class="user-pill hidden lg:flex items-center px-3 py-1 rounded-full bg-white/5 border border-white/10 gap-2 transition-all duration-300 hover:bg-white/10 hover:border-white/20 select-none">
+            <div
+              class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0 shadow-[0_0_8px_rgba(16,185,129,0.5)]">
+            </div>
+            <span class="text-[10px] font-bold text-slate-200 tracking-wide">USER ID: {{ USER_ID }}</span>
+          </div>
+
+          <!-- Broker Status -->
+          <div id="zbadge"
+            class="hidden md:flex items-center px-3 py-1 rounded-full bg-slate-500/10 border border-slate-500/20 text-slate-400 gap-2">
+            <div class="w-1.5 h-1.5 rounded-full bg-slate-500"></div>
+            <span class="text-[9px] font-bold tracking-widest uppercase">BROKER: CHECKING</span>
+          </div>
+
+          <!-- WS Status -->
+          <div id="wsbadge"
+            class="hidden md:flex items-center px-3 py-1 rounded-full bg-slate-100 border border-slate-200 gap-2">
+            <div class="w-1.5 h-1.5 rounded-full bg-slate-500"></div>
+            <span class="text-[9px] font-bold text-slate-500 tracking-widest uppercase">WS: LIVE</span>
+          </div>
+
+          <!-- Refresh / Restart Trading Service -->
+          <button id="restartTradingBtn" onclick="restartTradingService()"
+            class="hidden sm:flex btn px-4 py-1.5 rounded-lg bg-slate-500/10 text-slate-200 border border-slate-500/20 hover:bg-slate-500/20 transition-all font-bold text-xs uppercase tracking-wider">
+            ⟳ Refresh System
+          </button>
+
+          <!-- Kill Switch -->
+          <button id="killBtn" onclick="killSwitch()"
+            class="hidden sm:flex btn px-4 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all font-bold text-xs uppercase tracking-wider">
+            ⚠️ Kill Switch
+          </button>
+
+          <!-- Square Off All -->
+          <button onclick="exitAllPositions()"
+            class="cfg-btn action-btn hidden sm:flex btn px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 border border-white/10 transition-all">
+            Square Off All
+          </button>
+
+          <!-- Configure Alert -->
+          <button onclick="openCfg()"
+            class="cfg-btn action-btn btn px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold text-sm uppercase tracking-wider shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 border border-white/10 transition-all">
+            + Configure Alert
+          </button>
+
+          <!-- Action Tiles (Settings & Logout) -->
+          <div class="flex items-center gap-2 border-l border-white/10 pl-4 pr-2">
+
+            <!-- Settings Tile -->
+            <button onclick="openCred()" title="Broker Credentials"
+              class="p-2 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-400 hover:text-cyan-400 border border-white/5 hover:border-cyan-500/30 transition-all duration-300 group">
+              <svg class="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" fill="none"
+                viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                </path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              </svg>
+            </button>
+
+            <!-- Logout Tile -->
+            <!-- Logout removed -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content (Stacked) -->
+  <main class="max-w-none w-full mx-auto px-0 pt-16 pb-6 space-y-6">
+
+    <!-- Combined Signals + Positions -->
+    <section class="animate-enter">
+      <div class="flex items-center justify-between mb-1">
+        <div class="flex items-center gap-2">
+          <div
+            class="p-1 rounded-md bg-slate-900/70 text-slate-100 border border-white/10">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 3v18h18M7 13l4-4 3 3 5-6"></path>
+            </svg>
+          </div>
+          <h2 class="text-lg font-semibold text-slate-200 font-serif">Live Chartink Alerts & Positions</h2>
+        </div>
+        <div class="metrics-row flex items-center gap-2">
+          <span id="alertCount"
+            class="text-[10px] font-bold text-blue-100 bg-blue-900/70 px-2 py-1 rounded border border-blue-700/40">0
+            Alerts</span>
+          <span id="posCount"
+            class="badge bg-emerald-500/15 text-emerald-200 border-emerald-400/40 px-2.5 py-1 text-[10px] font-bold">0
+            Active Pos</span>
+          <div id="totalPnlBadge" class="net-pnl-pill text-[9px]">
+            <span class="pnl-label">Net P&amp;L:</span>
+            <span class="pnl-value">&#8377; 0.00</span>
+          </div>
+          <button onclick="refreshAll()" class="btn btn-light text-[10px] px-3 py-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+              </path>
+            </svg>
+            Refresh
+          </button>
+          <button onclick="clearAllAlerts()"
+            class="btn px-3 py-1.5 text-[10px] bg-rose-400/10 text-rose-400 border border-rose-400/20 hover:bg-rose-400/20 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+              </path>
+            </svg>
+            Clear Alerts
+          </button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <div class="overflow-x-auto">
+          <table>
+            <thead>
+              <tr class="text-[10px] uppercase tracking-[0.15em] text-slate-500 border-b border-white/5">
+                <th class="px-3 py-4 text-left font-bold tracking-wide uppercase text-slate-200" style="font-family:'Orbitron', sans-serif;">Alert Name</th>
+<th class="px-3 py-4 text-left font-bold tracking-wide uppercase text-slate-200" style="font-family:'Orbitron', sans-serif;">Time</th>
+<th class="px-3 py-4 text-left font-bold tracking-wide uppercase text-slate-200" style="font-family:'Orbitron', sans-serif;">Symbol</th>
+<th class="px-3 py-4 text-right font-bold tracking-wide uppercase text-slate-200" style="font-family:'Orbitron', sans-serif;">LTP</th>
+<th class="px-3 py-4 text-center font-bold tracking-wide uppercase text-slate-200" style="font-family:'Orbitron', sans-serif;">Type</th>
+<th class="px-3 py-4 text-center font-bold tracking-wide uppercase text-slate-200" style="font-family:'Orbitron', sans-serif;">Side</th>
+<th class="px-3 py-4 text-right font-bold tracking-wide uppercase text-slate-200" style="font-family:'Orbitron', sans-serif;">Qty</th>
+<th class="px-3 py-4 text-right font-bold tracking-wide uppercase text-slate-200" style="font-family:'Orbitron', sans-serif;">Entry</th>
+<th class="px-3 py-4 text-right font-bold tracking-wide uppercase text-slate-200" style="font-family:'Orbitron', sans-serif;">Target</th>
+<th class="px-3 py-4 text-right font-bold tracking-wide uppercase text-slate-200" style="font-family:'Orbitron', sans-serif;">Sl</th>
+<th class="px-3 py-4 text-right font-bold tracking-wide uppercase text-slate-200" style="font-family:'Orbitron', sans-serif;">TSL</th>
+<th class="px-3 py-4 text-right font-bold tracking-wide uppercase text-slate-200" style="font-family:'Orbitron', sans-serif;">P&L</th>
+<th class="px-3 py-4 text-center font-bold tracking-wide uppercase text-slate-200" style="font-family:'Orbitron', sans-serif;">Status</th>
+<th class="px-3 py-4 text-center font-bold tracking-wide uppercase text-slate-200" style="font-family:'Orbitron', sans-serif;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="alertsBody">
+              <tr>
+                <td colspan="14" class="text-center py-12 text-slate-400 italic">Waiting for incoming signals...</td>
+              </tr>
+            </tbody>
+            <tbody id="posBody">
+              <tr>
+                <td colspan="14" class="text-center py-12 text-slate-500 italic">No active positions currently.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- Credentials Modal -->
+  <div id="credModal" class="fixed inset-0 z-[100] hidden">
+    <div class="absolute inset-0 bg-black/90 backdrop-blur-md transition-opacity" onclick="closeCred()"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-1">
+      <!-- Gradient border wrapper -->
+      <div
+        class="relative rounded-2xl bg-gradient-to-b from-cyan-500/20 to-blue-600/5 p-[1px] shadow-2xl shadow-cyan-900/10 animate-enter">
+        <div class="cred-card rounded-2xl p-6 border-0 bg-[#0f172a]">
+          <button onclick="closeCred()"
+            class="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+
+          <div class="flex items-center gap-3 mb-5">
+            <div class="relative group">
+              <div
+                class="absolute -inset-1 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-xl blur opacity-40 group-hover:opacity-60 transition duration-200">
+              </div>
+              <div
+                class="relative w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center text-white shadow-xl shadow-blue-500/30">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
+                  </path>
+                </svg>
+              </div>
+            </div>
+            <div>
+              <h3 class="text-xl font-bold text-white tracking-tight font-[Outfit]">Connect Broker</h3>
+              <div class="flex items-center gap-2 text-[10px] font-semibold text-emerald-400 mt-1">
+                <span class="relative flex h-2 w-2">
+                  <span
+                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                Encrypted & Secure
+              </div>
+            </div>
+          </div>
+
+          <p class="text-sm text-slate-400 mb-4 leading-relaxed">
+            Select the broker used for orders, live ticks, order updates, and historical candles.
+          </p>
+
+          <div class="space-y-4">
+            <div class="group">
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">Broker</label>
+              <select id="broker_select" onchange="toggleBrokerFields()"
+                class="w-full bg-[#1e293b] border border-white/10 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-cyan-500">
+                <option value="ZERODHA">Zerodha Kite</option>
+                <option value="DHAN">Dhan</option>
+              </select>
+            </div>
+
+            <div id="zerodha_fields" class="space-y-4">
+            <div class="group">
+              <label
+                class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1 group-focus-within:text-cyan-400 transition-colors">API
+                Key</label>
+              <div class="relative">
+                <input id="api_key" type="password"
+                  class="w-full bg-[#1e293b] border border-white/10 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all placeholder:text-slate-500 shadow-inner"
+                  placeholder="Enter API Key ••••••••••••">
+                <button type="button" onclick="toggleVisibility('api_key')"
+                  class="absolute inset-y-0 right-0 px-4 flex items-center text-slate-600 hover:text-cyan-400 transition-colors">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z">
+                    </path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="group">
+              <label
+                class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1 group-focus-within:text-cyan-400 transition-colors">API
+                Secret</label>
+              <div class="relative">
+                <input id="api_secret" type="password"
+                  class="w-full bg-[#1e293b] border border-white/10 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all placeholder:text-slate-500 shadow-inner"
+                  placeholder="Enter API Secret ••••••••••••">
+                <button type="button" onclick="toggleVisibility('api_secret')"
+                  class="absolute inset-y-0 right-0 px-4 flex items-center text-slate-600 hover:text-cyan-400 transition-colors">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
+                    </path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            </div>
+
+            <div id="dhan_fields" class="space-y-4 hidden">
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">Dhan Client ID</label>
+                <input id="dhan_client_id" type="password"
+                  class="w-full bg-[#1e293b] border border-white/10 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-cyan-500"
+                  placeholder="Enter Dhan Client ID">
+              </div>
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">Dhan Access Token</label>
+                <input id="dhan_access_token" type="password"
+                  class="w-full bg-[#1e293b] border border-white/10 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-cyan-500"
+                  placeholder="Paste access token from Dhan">
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-3 mt-6">
+            <button onclick="saveCred()"
+              class="w-full py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-green-500 text-black font-bold shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2 group">
+              <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4">
+                </path>
+              </svg>
+              Save Secure Credentials
+            </button>
+            <button id="broker_connect_btn" onclick="connectBroker()"
+              class="w-full py-1.5 rounded-xl bg-transparent text-slate-300 font-semibold border border-slate-700/50 hover:border-slate-500 hover:text-white transition-all flex items-center justify-center gap-2 hover:bg-white/5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1">
+                </path>
+              </svg>
+              Connect Selected Broker
+            </button>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Config Modal -->
+  <div id="cfgModal" class="fixed inset-0 z-[100] hidden overflow-y-auto">
+    <div class="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onclick="closeCfg()"></div>
+    <div class="relative min-h-screen flex items-center justify-center p-3">
+      <div
+        class="cfg-card rounded-2xl p-3 border border-white/10 shadow-2xl w-full max-w-3xl relative animate-enter my-3 bg-[#0f172a]">
+        <button onclick="closeCfg()" class="absolute top-5 right-5 text-slate-400 hover:text-white">✕</button>
+
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <h3 class="text-base font-bold text-white">Strategy Configuration</h3>
+            <p class="text-[9px] text-slate-400">Define parameters for your Chartink alerts.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div class="col-span-2">
+            <label class="block text-xs font-semibold text-cyan-400 uppercase mb-1.5">Chartink Webhook URL</label>
+            <div class="flex gap-2">
+              <input id="webhook_url" class="input-field font-mono text-[11px]" readonly>
+              <button type="button" onclick="copyWebhookUrl()" class="btn btn-secondary px-3 text-xs">Copy</button>
+            </div>
+          </div>
+          <div class="col-span-2 md:col-span-1">
+            <label class="block text-xs font-semibold text-cyan-400 uppercase mb-1.5">Alert Name</label>
+            <input id="cfg_alert" class="input-field" placeholder="e.g. BULLISH_BREAKOUT">
+            <p class="text-[10px] text-slate-500 mt-1">Must match Chartink alert name exactly</p>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Status</label>
+            <select id="cfg_enabled" class="input-field">
+              <option value="true">Active</option>
+              <option value="false">Paused</option>
+            </select>
+          </div>
+
+          <div class="col-span-2">
+            <label class="block text-xs font-semibold text-cyan-400 uppercase mb-1.5">Strategy Engine</label>
+            <select id="cfg_strategy_mode" class="input-field" onchange="toggleStrategyMode()">
+              <option value="CLASSIC">Classic (existing percentage rules)</option>
+              <option value="PRECISION_SNIPER">Precision Sniper (5-minute confirmation)</option>
+            </select>
+            <p class="text-[10px] text-slate-500 mt-1">Chartink supplies candidate stocks. Precision Sniper confirms entries using closed 5-minute candles from the selected broker.</p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Trade Direction</label>
+            <select id="cfg_dir" class="input-field">
+              <option value="LONG">LONG (Buy)</option>
+              <option value="SHORT">SHORT (Sell)</option>
+              <option value="BOTH">BOTH (use custom signal)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Product Type</label>
+            <select id="cfg_prod" class="input-field">
+              <option value="MIS">MIS (Intraday)</option>
+              <option value="CNC">CNC (Delivery)</option>
+            </select>
+          </div>
+
+          <div class="col-span-2 grid grid-cols-3 gap-2">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Sizing Mode</label>
+              <select id="cfg_qtymode" class="input-field">
+                <option value="CAPITAL">Capital Based</option>
+                <option value="QTY">Fixed Quantity</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Capital (₹)</label>
+              <input id="cfg_cap" type="number" class="input-field" placeholder="e.g. 20000">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Fixed Qty</label>
+              <input id="cfg_qty" type="number" class="input-field" placeholder="e.g. 1">
+            </div>
+          </div>
+
+          <!-- Classic Risk Management -->
+          <div id="classicRiskPanel" class="col-span-2 border-t border-white/5 pt-2 mt-1">
+            <h4 class="text-xs font-bold text-white mb-2">Risk Management (MIS Only)</h4>
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="block text-xs font-semibold text-emerald-400 uppercase mb-1.5">Target %</label>
+                <input id="cfg_tgt" type="number" step="0.1" class="input-field">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-rose-400 uppercase mb-1.5">Stop Loss %</label>
+                <input id="cfg_sl" type="number" step="0.1" class="input-field">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-blue-400 uppercase mb-1.5">Trailing SL %</label>
+                <input id="cfg_tsl" type="number" step="0.1" class="input-field">
+              </div>
+            </div>
+            <div class="mt-2">
+              <label class="block text-xs font-semibold text-slate-400 uppercase mb-1.5">TSL Mode</label>
+              <select id="cfg_tsl_stepwise" class="input-field">
+                <option value="false">Continuous Trailing</option>
+                <option value="true">Step-wise Trailing</option>
+              </select>
+              <p class="text-[10px] text-slate-500 mt-1">If step-wise is ON: for every TSL% move from entry, SL trails once.</p>
+            </div>
+          </div>
+
+          <!-- Precision Sniper -->
+          <div id="customStrategyPanel" class="hidden col-span-2 border-t border-cyan-500/20 pt-3 mt-1">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-bold text-cyan-300">Precision Sniper Parameters (5-minute)</h4>
+              <span class="text-[9px] text-slate-500">Entry is checked on the latest closed candle</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div>
+                <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Preset</label>
+                <select id="cfg_custom_preset" class="input-field">
+                  <option>Auto</option><option>Scalping</option><option>Aggressive</option>
+                  <option>Default</option><option>Conservative</option><option>Swing</option><option>Custom</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">HTF Bias</label>
+                <select id="cfg_custom_htf" class="input-field">
+                  <option value="5">Current 5m</option><option value="15">15m</option>
+                  <option value="30">30m</option><option value="60">1 hour</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Grade Filter</label>
+                <select id="cfg_custom_grade" class="input-field">
+                  <option>All</option><option>A+ and A</option><option>A+ Only</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Hide C Grade</label>
+                <select id="cfg_custom_hide_c" class="input-field"><option value="true">Yes</option><option value="false">No</option></select>
+              </div>
+
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">EMA Fast</label><input id="cfg_custom_ema_fast" type="number" class="input-field" value="9"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">EMA Slow</label><input id="cfg_custom_ema_slow" type="number" class="input-field" value="21"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">EMA Trend</label><input id="cfg_custom_ema_trend" type="number" class="input-field" value="55"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Min Score</label><input id="cfg_custom_min_score" type="number" step="0.5" class="input-field" value="5"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">RSI Length</label><input id="cfg_custom_rsi_len" type="number" class="input-field" value="13"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">ATR Length</label><input id="cfg_custom_atr_len" type="number" class="input-field" value="14"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">SL ATR Mult.</label><input id="cfg_custom_sl_mult" type="number" step="0.1" class="input-field" value="1.5"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Swing Lookback</label><input id="cfg_custom_swing" type="number" class="input-field" value="10"></div>
+
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP1 R:R</label><input id="cfg_custom_tp1" type="number" step="0.1" class="input-field" value="1"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP2 R:R</label><input id="cfg_custom_tp2" type="number" step="0.1" class="input-field" value="2"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP3 R:R</label><input id="cfg_custom_tp3" type="number" step="0.1" class="input-field" value="3"></div>
+              <div>
+                <label class="block text-[10px] text-slate-400 uppercase mb-1">Volatility Mode</label>
+                <select id="cfg_custom_vol_mode" class="input-field"><option>Skip Signals</option><option>Widen SL</option><option>Off</option></select>
+              </div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">High Vol Threshold</label><input id="cfg_custom_vol_threshold" type="number" step="0.05" class="input-field" value="1.3"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">SL Widen Factor</label><input id="cfg_custom_vol_widen" type="number" step="0.1" class="input-field" value="1.5"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Structure SL</label><select id="cfg_custom_structure" class="input-field"><option value="true">On</option><option value="false">Off</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Target Trail</label><select id="cfg_custom_trail" class="input-field"><option value="true">On</option><option value="false">Off</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Full Exit TP3</label><select id="cfg_custom_exit_tp3" class="input-field"><option value="true">Yes</option><option value="false">Keep Runner</option></select></div>
+            </div>
+            <div class="mt-3 p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04]">
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div>
+                  <label class="block text-[10px] text-emerald-400 uppercase mb-1">Partial Profit</label>
+                  <select id="cfg_custom_partial_on" class="input-field" onchange="togglePartialProfitFields()">
+                    <option value="false">Off</option>
+                    <option value="true">On</option>
+                  </select>
+                </div>
+                <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP1 Qty %</label><input id="cfg_custom_partial_tp1" type="number" min="0" max="100" step="1" class="input-field" value="50"></div>
+                <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP2 Qty %</label><input id="cfg_custom_partial_tp2" type="number" min="0" max="100" step="1" class="input-field" value="25"></div>
+                <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP3 Qty %</label><input id="cfg_custom_partial_tp3" type="number" min="0" max="100" step="1" class="input-field" value="25"></div>
+              </div>
+              <p class="text-[10px] text-slate-500 mt-2">When enabled, percentages must total 100%. TP3 always exits the exact remaining quantity after rounding.</p>
+            </div>
+          </div>
+
+          <!-- Daily P&L Exit (Account-level) -->
+          <div class="col-span-2 border-t border-white/5 pt-2 mt-1">
+            <h4 class="text-xs font-bold text-white mb-2">Daily P&amp;L Exit (Account)</h4>
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Enabled</label>
+                <select id="cfg_pnl_exit_on" class="input-field">
+                  <option value="false">OFF</option>
+                  <option value="true">ON</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-emerald-400 uppercase mb-1.5">Max Profit</label>
+                <input id="cfg_max_profit" type="number" step="1" class="input-field" placeholder="e.g. 1500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-rose-400 uppercase mb-1.5">Max Loss</label>
+                <input id="cfg_max_loss" type="number" step="1" class="input-field" placeholder="e.g. 800">
+              </div>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-1">Checks MTM every 2 seconds. If hit, exits all positions and disables trading for the day.</p>
+          </div>
+
+          <!-- Entry Time Window -->
+          <div class="col-span-2 border-t border-white/5 pt-2 mt-1">
+            <h4 class="text-xs font-bold text-white mb-2">Entry Time Window</h4>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-semibold text-cyan-400 uppercase mb-1.5">Entry Start Time</label>
+                <input id="cfg_entry_start" type="time" class="input-field" value="09:15">
+                <p class="text-[10px] text-slate-500 mt-1">Alerts before this time will be rejected</p>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-orange-400 uppercase mb-1.5">Entry End Time</label>
+                <input id="cfg_entry_end" type="time" class="input-field" value="15:15">
+                <p class="text-[10px] text-slate-500 mt-1">Alerts after this time will be rejected</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-span-2 border-t border-white/5 pt-2">
+            <div class="flex items-center gap-2">
+              <div class="flex-1">
+                <label class="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Max Trades / Day</label>
+                <input id="cfg_limit" type="number" class="input-field">
+              </div>
+              <div class="flex-[1.5] grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Sector Filter</label>
+                  <select id="cfg_sector_on" class="input-field w-full">
+                    <option value="false">OFF</option>
+                    <option value="true">ON</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Top N Sectors</label>
+                  <input id="cfg_topn" type="number" class="input-field" placeholder="e.g. 2">
+                </div>
+              </div>
+            </div>
+            <!-- Dynamic Top Sectors Display -->
+            <div id="topSecContainer" class="col-span-2 mt-1 hidden">
+              <label class="block text-xs font-semibold text-emerald-400 uppercase mb-1">Current Top Sectors</label>
+              <div id="topSecList" class="flex flex-wrap gap-1.5 text-[10px]">
+                <!-- Injected by JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-2 mt-6 pt-4 border-t border-white/10">
+          <button onclick="saveCfg()" class="btn btn-primary flex-1 py-2 text-sm">Save Configuration</button>
+          <button onclick="loadCfgList()" class="btn btn-secondary py-2 text-sm">Reload</button>
+        </div>
+
+        <div class="mt-4">
+          <h4 class="text-[10px] font-bold text-slate-500 uppercase mb-2">Saved Strategies</h4>
+          <div id="cfgList" class="space-y-1.5 max-h-32 overflow-y-auto pr-2">
+            <!-- Items injected by JS -->
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmModal" class="fixed inset-0 z-[150] hidden">
+    <div class="absolute inset-0 bg-black/90 backdrop-blur-md transition-opacity"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-4">
+      <div class="relative bg-[#0f172a] border border-white/10 rounded-2xl p-6 shadow-2xl animate-enter">
+        <h3 class="text-lg font-bold text-white mb-2 font-[Outfit]">Confirm Action</h3>
+        <p id="confirmMsg" class="text-slate-400 text-sm mb-6 leading-relaxed">Are you sure?</p>
+        <div class="flex gap-3 justify-end">
+          <button id="btnCancel" class="btn btn-secondary text-xs px-4">Cancel</button>
+          <button id="btnConfirm"
+            class="btn btn-primary bg-gradient-to-r from-amber-500 to-orange-600 border-amber-500/20 text-xs px-4 shadow-amber-900/20">Yes,
+            Proceed</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container"
+    class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col items-center gap-2 pointer-events-none"></div>
+
+  <script>
+    const USER_ID = "{{USER_ID}}";
+
+    /* ================= AUTHENTICATION REMOVED (Cloudflare Zero Trust) ================= */
+    // Logic removed to prevent redirects to /login
+
+    /* ================= UI HELPERS ================= */
+    function toast(msg, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const el = document.createElement('div');
+
+      const colors = type === 'error'
+        ? 'bg-rose-500/10 border-rose-500/20 text-rose-200'
+        : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-200';
+
+      const icon = type === 'error' ? '⚠️' : '✅';
+
+      el.className = `bg-slate-900 px-4 py-3 rounded-xl border flex items-center gap-3 shadow-xl backdrop-blur-xl animate-enter ${colors}`;
+      el.innerHTML = `<span class="text-lg">${icon}</span><span class="text-sm font-medium">${msg}</span>`;
+
+      container.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(10px)';
+        setTimeout(() => el.remove(), 300);
+      }, 3000);
+    }
+
+    function toggleVisibility(id) {
+      const el = document.getElementById(id);
+      el.type = el.type === 'password' ? 'text' : 'password';
+    }
+
+    /* ================= LOGIC TOASTS & API ================= */
+    // ... (Retaining original logic, just mapping to new UI IDs) ...
+
+    async function openCred() {
+      document.getElementById("credModal").classList.remove("hidden");
+      try {
+        const d = await (await fetch(`/api/broker-config?user_id=${USER_ID}`)).json();
+        document.getElementById("broker_select").value = d.broker || "ZERODHA";
+      } catch (e) {}
+      toggleBrokerFields();
+    }
+    function closeCred() { document.getElementById("credModal").classList.add("hidden"); }
+
+    function toggleBrokerFields() {
+      const broker = document.getElementById("broker_select").value;
+      document.getElementById("zerodha_fields").classList.toggle("hidden", broker !== "ZERODHA");
+      document.getElementById("dhan_fields").classList.toggle("hidden", broker !== "DHAN");
+      document.getElementById("broker_connect_btn").textContent =
+        broker === "DHAN" ? "Connect Dhan" : "Log in to Kite";
+    }
+
+    function openConfirm(msg) {
+      return new Promise((resolve) => {
+        const el = document.getElementById("confirmModal");
+        const msgEl = document.getElementById("confirmMsg");
+        const btnYes = document.getElementById("btnConfirm");
+        const btnNo = document.getElementById("btnCancel");
+
+        msgEl.textContent = msg;
+        el.classList.remove("hidden");
+
+        const cleanup = () => {
+          el.classList.add("hidden");
+          btnYes.onclick = null;
+          btnNo.onclick = null;
+        };
+
+        btnYes.onclick = () => { cleanup(); resolve(true); };
+        btnNo.onclick = () => { cleanup(); resolve(false); };
+      });
+    }
+
+    async function fetchTopSectors() {
+      try {
+        const limit = document.getElementById("cfg_topn").value || 3;
+        const r = await fetch(`/api/sectors/top?user_id=${USER_ID}&limit=${limit}`);
+        const d = await r.json();
+
+        const cont = document.getElementById("topSecContainer");
+        const list = document.getElementById("topSecList");
+
+        if (d.sectors && d.sectors.length > 0) {
+          cont.classList.remove("hidden");
+          list.innerHTML = d.sectors.map((s, i) => `
+                    <div class="px-2 py-1 rounded bg-slate-800 border border-slate-700 flex items-center gap-2">
+                        <span class="font-bold text-slate-400">#${i + 1}</span>
+                        <span class="font-mono text-cyan-300">${s.name}</span>
+                        <span class="${s.pct >= 0 ? 'text-emerald-400' : 'text-rose-400'} font-bold">${s.pct > 0 ? '+' : ''}${s.pct.toFixed(2)}%</span>
+                    </div>
+                `).join('');
+        } else {
+          cont.classList.add("hidden");
+        }
+      } catch (e) { console.error("Failed to fetch top sectors", e); }
+    }
+
+    document.getElementById("cfg_topn").addEventListener("change", fetchTopSectors);
+    document.getElementById("cfg_topn").addEventListener("keyup", fetchTopSectors);
+
+    function closeCfg() { document.getElementById("cfgModal").classList.add("hidden"); }
+    function openCfg() {
+      document.getElementById("cfgModal").classList.remove("hidden");
+
+      // Populate Webhook URL
+      const proto = location.protocol;
+      const host = location.host;
+      const url = `${proto}//${host}/webhook/chartink?user_id=${USER_ID}`;
+      const el = document.getElementById("webhook_url");
+      if (el) el.value = url;
+
+      loadCfgList();
+      loadPnlExitCfg();
+      toggleStrategyMode();
+      togglePartialProfitFields();
+    }
+
+    function copyWebhookUrl() {
+      const copyText = document.getElementById("webhook_url");
+      copyText.select();
+      copyText.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(copyText.value).then(() => {
+        toast("Webhook URL Copied!");
+      }).catch(err => {
+        console.error('Failed to copy: ', err);
+        toast("Failed to copy URL", "error");
+      });
+    }
+
+    /* --- API Calls with new Toast --- */
+    async function saveCred() {
+      const broker = document.getElementById("broker_select").value;
+      const api_key = document.getElementById("api_key").value;
+      const api_secret = document.getElementById("api_secret").value;
+      const client_id = document.getElementById("dhan_client_id").value;
+      const access_token = document.getElementById("dhan_access_token").value;
+      try {
+        const endpoint = broker === "DHAN" ? "/api/broker-config" : "/api/save-credentials";
+        const body = broker === "DHAN"
+          ? { user_id: USER_ID, broker, client_id, access_token }
+          : { user_id: USER_ID, api_key, api_secret };
+        const r = await fetch(endpoint, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        const d = await r.json();
+        if (d.error) throw d.error;
+        if (broker === "ZERODHA") {
+          const selectResponse = await fetch("/api/broker-config", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: USER_ID, broker: "ZERODHA" })
+          });
+          const selected = await selectResponse.json();
+          if (selected.error) throw selected.error;
+        }
+        toast(broker === "DHAN" ? "Dhan connected successfully" : "Credentials saved successfully");
+        closeCred();
+      } catch (e) {
+        toast(e, 'error');
+      }
+    }
+
+    function connectZerodha() { location.href = `/connect/zerodha?user_id=${USER_ID}`; }
+    async function connectBroker() {
+      const broker = document.getElementById("broker_select").value;
+      if (broker === "DHAN") await saveCred();
+      else connectZerodha();
+    }
+
+    async function refreshZ() {
+      const el = document.getElementById("zbadge");
+      try {
+        const r = await (await fetch(`/api/broker-status?user_id=${USER_ID}`)).json();
+        const brokerLabel = r.broker === "DHAN" ? "DHAN" : "KITE";
+        if (r.connected) {
+        const label = r.ticker_connected ? `${brokerLabel} CONNECTED` : `${brokerLabel} AUTH OK`;
+        el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)] inline-block mr-1.5"></span> ${label}`;
+          el.className = "px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)] transition-all";
+        } else {
+          throw new Error('Disconnected');
+        }
+
+        // Kill Switch Status
+        const kb = document.getElementById("killBtn");
+        if (r.kill_switch) {
+          kb.innerHTML = "🛑 RESUME TRADING";
+          kb.className = "hidden sm:flex btn px-4 py-1.5 rounded-lg bg-rose-600 text-white border border-rose-400 shadow-[0_0_15px_rgba(225,29,72,0.5)] animate-pulse font-bold text-xs uppercase tracking-wider";
+        } else {
+          kb.innerHTML = "⚠️ KILL SWITCH";
+          kb.className = "hidden sm:flex btn px-4 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all font-bold text-xs uppercase tracking-wider";
+        }
+
+      } catch {
+        el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block mr-1.5 animate-pulse"></span> BROKER DISCONNECTED`;
+        el.className = "px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.2)] transition-all";
+      }
+    }
+
+    async function restartTradingService() {
+      const ok = await openConfirm("Restart trading service now? (This runs the server-side restart command.)");
+      if (!ok) return;
+
+      const attempt = async (token) => {
+        const headers = { "Content-Type": "application/json" };
+        if (token) headers["X-Restart-Token"] = token;
+        const r = await fetch("/api/service/restart", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ user_id: USER_ID })
+        });
+        const d = await r.json().catch(() => ({}));
+        return { r, d };
+      };
+
+      try {
+        toast("Restart requested…");
+        let { r, d } = await attempt(localStorage.getItem("SERVICE_RESTART_TOKEN") || "");
+
+        if (r.status === 403) {
+          const t = prompt("Restart token required. Enter SERVICE_RESTART_TOKEN:", "") || "";
+          if (!t) throw new Error("Restart token required");
+          localStorage.setItem("SERVICE_RESTART_TOKEN", t);
+          ({ r, d } = await attempt(t));
+        }
+
+        if (!r.ok || d.ok === false) {
+          throw new Error(d.error || d.detail || `Restart failed (${r.status})`);
+        }
+
+        toast(d.message || "Restart requested");
+        setTimeout(() => location.reload(), 2500);
+      } catch (e) {
+        toast((e && e.message) ? e.message : String(e), "error");
+      }
+    }
+
+    async function killSwitch() {
+      const btn = document.getElementById("killBtn");
+      const isKill = btn.innerText.includes("RESUME");
+
+      const msg = isKill
+        ? "🟢 RESUME TRADING? This will re-enable order placement."
+        : "⚠️ EMERGENCY: STOP TRADING? This will square-off open positions, then BLOCK all new entries.";
+
+      if (!confirm(msg)) return;
+
+      // Toggle (if isKill is true, we want enabled=false)
+      const enabled = !isKill;
+
+      const resp = await fetch("/api/kill-switch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: USER_ID, enabled: enabled })
+      });
+      const d = await resp.json().catch(() => ({}));
+
+      if (!resp.ok || d.error) {
+        toast(d.error || d.detail || "Kill switch request failed", "error");
+        return;
+      }
+
+      if (enabled && d.squareoff && typeof d.squareoff.count === "number") {
+        toast(`Square-off triggered for ${d.squareoff.count} positions`, "error");
+      }
+      toast(enabled ? "KILL SWITCH ACTIVATED" : "TRADING RESUMED", enabled ? 'error' : 'success');
+      refreshZ();
+    }
+
+    /* --- Auto Square Off --- */
+    // Removed autoSqEnabled, renderAutoSqBtn, checkAutoSqOff, toggleAutoSqOff functions as per instruction.
+
+    /* --- Config Logic --- */
+    let PNL_EXIT_CFG = null;
+
+    function toggleStrategyMode() {
+      const custom = document.getElementById("cfg_strategy_mode").value === "PRECISION_SNIPER";
+      document.getElementById("customStrategyPanel").classList.toggle("hidden", !custom);
+      document.getElementById("classicRiskPanel").classList.toggle("hidden", custom);
+    }
+
+    function togglePartialProfitFields() {
+      const enabled = document.getElementById("cfg_custom_partial_on").value === "true";
+      ["cfg_custom_partial_tp1", "cfg_custom_partial_tp2", "cfg_custom_partial_tp3"].forEach(id => {
+        const el = document.getElementById(id);
+        el.disabled = !enabled;
+        el.classList.toggle("opacity-50", !enabled);
+      });
+    }
+
+    function fillPnlExitForm(cfg) {
+      const c = cfg || {};
+      const sets = {
+        "cfg_pnl_exit_on": String(!!c.enabled),
+        "cfg_max_profit": (c.max_profit ?? 0),
+        "cfg_max_loss": (c.max_loss ?? 0),
+      };
+      for (let k in sets) {
+        const el = document.getElementById(k);
+        if (el) el.value = String(sets[k]);
+      }
+    }
+
+    async function loadPnlExitCfg() {
+      try {
+        const d = await (await fetch(`/api/pnl-exit-config?user_id=${USER_ID}`)).json();
+        PNL_EXIT_CFG = d.config || null;
+        fillPnlExitForm(PNL_EXIT_CFG);
+      } catch (e) {
+        console.error("Failed to load P&L exit config", e);
+      }
+    }
+
+    async function savePnlExitCfg() {
+      const payload = {
+        user_id: USER_ID,
+        enabled: document.getElementById("cfg_pnl_exit_on").value === "true",
+        max_profit: parseFloat(document.getElementById("cfg_max_profit").value || 0),
+        max_loss: parseFloat(document.getElementById("cfg_max_loss").value || 0),
+      };
+      try {
+        const r = await fetch("/api/pnl-exit-config", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+        });
+        const d = await r.json();
+        if (d.error) throw d.error;
+        PNL_EXIT_CFG = d.config || payload;
+      } catch (e) {
+        console.error("Failed to save P&L exit config", e);
+      }
+    }
+
+    async function loadCfgList() {
+      const d = await (await fetch(`/api/alert-config?user_id=${USER_ID}`)).json();
+      const list = document.getElementById("cfgList");
+      list.innerHTML = "";
+      const cfgs = d.configs || {};
+
+      if (Object.keys(cfgs).length === 0) {
+        list.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">No saved strategies found.</div>`;
+        return;
+      }
+
+      Object.keys(cfgs).sort().forEach(k => {
+        const c = cfgs[k];
+        const div = document.createElement("div");
+        div.className = "group relative flex items-center justify-between p-4 rounded-xl bg-gradient-to-br from-slate-900/80 to-slate-800/80 border border-white/5 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-900/20 transition-all duration-300 cursor-pointer overflow-hidden";
+
+        // Active indicator strip
+        const activeStrip = c.enabled ? `<div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>` : `<div class="absolute left-0 top-0 bottom-0 w-1 bg-slate-700"></div>`;
+
+        div.onclick = () => fillCfg(k);
+        div.innerHTML = `
+          ${activeStrip}
+          <div class="pl-3">
+            <div class="flex items-center gap-2">
+               <div class="text-sm font-bold text-white group-hover:text-cyan-400 transition-colors">${k}</div>
+               ${c.enabled ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ACTIVE</span>' : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-700/30 text-slate-500 border border-white/5">PAUSED</span>'}
+            </div>
+            <div class="text-[10px] text-slate-400 mt-1 font-mono flex flex-wrap gap-x-3 gap-y-1">
+              <span><span class="${c.direction === 'LONG' ? 'text-emerald-400' : 'text-rose-400'}">${c.direction}</span> • <span class="text-cyan-200">${c.product}</span></span>
+              <span>Engine: <span class="text-cyan-300">${c.strategy_mode === 'PRECISION_SNIPER' ? 'SNIPER 5M' : 'CLASSIC'}</span></span>
+              <span>Target: <span class="text-white">${c.target_pct}%</span></span>
+              <span>SL: <span class="text-rose-300">${c.stop_loss_pct}%</span></span>
+              <span>TSL: <span class="text-blue-300">${c.trailing_sl_pct}%</span></span>
+              <span>Mode: <span class="text-slate-200">${c.tsl_stepwise ? 'STEP' : 'CONT'}</span></span>
+              <span>Limit: <span class="text-yellow-200">${c.trade_limit_per_day}/day</span></span>
+              ${c.custom_partial_profit_enabled ? `<span>Partial: <span class="text-emerald-300">${c.custom_partial_tp1_pct ?? 50}%/${c.custom_partial_tp2_pct ?? 25}%/${c.custom_partial_tp3_pct ?? 25}%</span></span>` : ''}
+              ${c.sector_filter_on ? `<span>Sector: <span class="text-fuchsia-300">Top ${c.top_n_sector}</span></span>` : ''}
+            </div>
+          </div>
+        `;
+
+        // Wrapper for click handling separation
+        const wrapper = document.createElement("div");
+        wrapper.className = "flex items-center gap-2 w-full";
+
+        // Trash button
+        const delBtn = document.createElement("button");
+        delBtn.className = "p-1.5 rounded-md hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 transition-colors z-10";
+        delBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`;
+        delBtn.onclick = (e) => {
+          e.stopPropagation(); // prevent filling form
+          deleteCfg(k);
+        };
+
+        div.appendChild(delBtn); // Append delete button
+
+        // Re-structure to have [Info Area (Clickable)] + [Delete Btn]
+        // But simply appending to div (relative) works if styled right. 
+        // Let's use flex in parent.
+        list.appendChild(div);
+      });
+    }
+
+    async function fillCfg(name) {
+      const d = await (await fetch(`/api/alert-config?user_id=${USER_ID}`)).json();
+      const c = (d.configs || {})[name];
+      if (!c) return;
+
+      // Populate fields
+      const sets = {
+        "cfg_alert": name, "cfg_enabled": String(!!c.enabled), "cfg_dir": c.direction,
+        "cfg_prod": c.product, "cfg_qtymode": c.qty_mode, "cfg_cap": c.capital,
+        "cfg_qty": c.qty, "cfg_tgt": c.target_pct, "cfg_sl": c.stop_loss_pct,
+        "cfg_tsl": c.trailing_sl_pct, "cfg_tsl_stepwise": String(!!c.tsl_stepwise), "cfg_limit": c.trade_limit_per_day,
+        "cfg_sector_on": String(!!c.sector_filter_on), "cfg_topn": c.top_n_sector,
+        "cfg_entry_start": c.entry_start_time || "09:15",
+        "cfg_entry_end": c.entry_end_time || "15:15",
+        "cfg_strategy_mode": c.strategy_mode || "CLASSIC",
+        "cfg_custom_preset": c.custom_preset || "Auto",
+        "cfg_custom_htf": c.custom_htf_minutes || 5,
+        "cfg_custom_grade": c.custom_grade_filter || "All",
+        "cfg_custom_hide_c": String(c.custom_hide_c_grade ?? true),
+        "cfg_custom_ema_fast": c.custom_ema_fast ?? 9,
+        "cfg_custom_ema_slow": c.custom_ema_slow ?? 21,
+        "cfg_custom_ema_trend": c.custom_ema_trend ?? 55,
+        "cfg_custom_min_score": c.custom_min_score ?? 5,
+        "cfg_custom_rsi_len": c.custom_rsi_len ?? 13,
+        "cfg_custom_atr_len": c.custom_atr_len ?? 14,
+        "cfg_custom_sl_mult": c.custom_sl_mult ?? 1.5,
+        "cfg_custom_swing": c.custom_swing_lookback ?? 10,
+        "cfg_custom_tp1": c.custom_tp1_mult ?? 1,
+        "cfg_custom_tp2": c.custom_tp2_mult ?? 2,
+        "cfg_custom_tp3": c.custom_tp3_mult ?? 3,
+        "cfg_custom_vol_mode": c.custom_vol_filter_mode || "Skip Signals",
+        "cfg_custom_vol_threshold": c.custom_high_vol_threshold ?? 1.3,
+        "cfg_custom_vol_widen": c.custom_vol_widen_factor ?? 1.5,
+        "cfg_custom_structure": String(c.custom_use_structure_sl ?? true),
+        "cfg_custom_trail": String(c.custom_use_trail ?? true),
+        "cfg_custom_exit_tp3": String(c.custom_full_exit_tp3 ?? true),
+        "cfg_custom_partial_on": String(c.custom_partial_profit_enabled ?? false),
+        "cfg_custom_partial_tp1": c.custom_partial_tp1_pct ?? 50,
+        "cfg_custom_partial_tp2": c.custom_partial_tp2_pct ?? 25,
+        "cfg_custom_partial_tp3": c.custom_partial_tp3_pct ?? 25
+      };
+      for (let k in sets) {
+        const el = document.getElementById(k);
+        if (el) el.value = sets[k];
+      }
+      toggleStrategyMode();
+      togglePartialProfitFields();
+    }
+
+    async function saveCfg() {
+      const payload = {
+        user_id: USER_ID,
+        alert_name: document.getElementById("cfg_alert").value.trim(),
+        enabled: document.getElementById("cfg_enabled").value === "true",
+        direction: document.getElementById("cfg_dir").value,
+        product: document.getElementById("cfg_prod").value,
+        qty_mode: document.getElementById("cfg_qtymode").value,
+        capital: parseFloat(document.getElementById("cfg_cap").value || 0),
+        qty: parseInt(document.getElementById("cfg_qty").value || 1),
+        target_pct: parseFloat(document.getElementById("cfg_tgt").value || 0),
+        stop_loss_pct: parseFloat(document.getElementById("cfg_sl").value || 0),
+        trailing_sl_pct: parseFloat(document.getElementById("cfg_tsl").value || 0),
+        tsl_stepwise: document.getElementById("cfg_tsl_stepwise").value === "true",
+        trade_limit_per_day: parseInt(document.getElementById("cfg_limit").value || 0),
+        sector_filter_on: document.getElementById("cfg_sector_on").value === "true",
+        top_n_sector: parseInt(document.getElementById("cfg_topn").value || 0),
+        entry_start_time: document.getElementById("cfg_entry_start").value || "09:15",
+        entry_end_time: document.getElementById("cfg_entry_end").value || "15:15",
+        strategy_mode: document.getElementById("cfg_strategy_mode").value,
+        custom_preset: document.getElementById("cfg_custom_preset").value,
+        custom_htf_minutes: parseInt(document.getElementById("cfg_custom_htf").value || 5),
+        custom_grade_filter: document.getElementById("cfg_custom_grade").value,
+        custom_hide_c_grade: document.getElementById("cfg_custom_hide_c").value === "true",
+        custom_ema_fast: parseInt(document.getElementById("cfg_custom_ema_fast").value || 9),
+        custom_ema_slow: parseInt(document.getElementById("cfg_custom_ema_slow").value || 21),
+        custom_ema_trend: parseInt(document.getElementById("cfg_custom_ema_trend").value || 55),
+        custom_min_score: parseFloat(document.getElementById("cfg_custom_min_score").value || 5),
+        custom_rsi_len: parseInt(document.getElementById("cfg_custom_rsi_len").value || 13),
+        custom_atr_len: parseInt(document.getElementById("cfg_custom_atr_len").value || 14),
+        custom_sl_mult: parseFloat(document.getElementById("cfg_custom_sl_mult").value || 1.5),
+        custom_swing_lookback: parseInt(document.getElementById("cfg_custom_swing").value || 10),
+        custom_tp1_mult: parseFloat(document.getElementById("cfg_custom_tp1").value || 1),
+        custom_tp2_mult: parseFloat(document.getElementById("cfg_custom_tp2").value || 2),
+        custom_tp3_mult: parseFloat(document.getElementById("cfg_custom_tp3").value || 3),
+        custom_vol_filter_mode: document.getElementById("cfg_custom_vol_mode").value,
+        custom_high_vol_threshold: parseFloat(document.getElementById("cfg_custom_vol_threshold").value || 1.3),
+        custom_vol_widen_factor: parseFloat(document.getElementById("cfg_custom_vol_widen").value || 1.5),
+        custom_use_structure_sl: document.getElementById("cfg_custom_structure").value === "true",
+        custom_use_trail: document.getElementById("cfg_custom_trail").value === "true",
+        custom_full_exit_tp3: document.getElementById("cfg_custom_exit_tp3").value === "true",
+        custom_partial_profit_enabled: document.getElementById("cfg_custom_partial_on").value === "true",
+        custom_partial_tp1_pct: parseFloat(document.getElementById("cfg_custom_partial_tp1").value || 0),
+        custom_partial_tp2_pct: parseFloat(document.getElementById("cfg_custom_partial_tp2").value || 0),
+        custom_partial_tp3_pct: parseFloat(document.getElementById("cfg_custom_partial_tp3").value || 0),
+      };
+
+      if (!payload.alert_name) { toast("Alert Name is required", 'error'); return; }
+      if (payload.strategy_mode === "PRECISION_SNIPER" && payload.custom_partial_profit_enabled) {
+        const partialTotal = payload.custom_partial_tp1_pct + payload.custom_partial_tp2_pct + payload.custom_partial_tp3_pct;
+        if (Math.abs(partialTotal - 100) > 0.001) {
+          toast("Partial-profit percentages must total 100%", "error");
+          return;
+        }
+      }
+
+      try {
+        const r = await fetch("/api/alert-config", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+        });
+        const d = await r.json();
+        if (d.error) throw d.error;
+        await savePnlExitCfg();
+        toast(`Strategy '${payload.alert_name}' Saved`);
+        loadCfgList();
+        closeCfg(); // Auto close on save
+      } catch (e) { toast(e, 'error'); }
+    }
+
+    async function deleteCfg(name) {
+      if (!confirm(`Are you sure you want to DELETE strategy '${name}'?`)) return;
+
+      try {
+        const r = await fetch("/api/alert-config", {
+          method: "DELETE", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: USER_ID, alert_name: name })
+        });
+        const d = await r.json();
+        if (!d.deleted) throw "Delete failed";
+        toast(`Strategy '${name}' deleted`);
+        loadCfgList();
+
+        // Clear inputs if deleting currently viewed
+        if (document.getElementById("cfg_alert").value === name) {
+          document.getElementById("cfg_alert").value = "";
+        }
+      } catch (e) {
+        toast("Failed to delete strategy", 'error');
+      }
+    }
+
+    /* --- Rendering Logic --- */
+    const ALERTS = [];
+    let WS = null;
+    let POS_MAP = {}; // Global map: symbol -> position object
+    let POS_SNAPSHOT = {}; // Keep last known position data to avoid UI clearing
+    let _alertsRenderTimer = null;
+    let _lastLtpUiUpdate = 0;
+
+    // Helper: sanitize symbol for use as HTML ID
+    function safeId(symbol) {
+      return (symbol || '').replace(/[^a-zA-Z0-9]/g, '_');
+    }
+
+    function renderAlerts() {
+      const tbody = document.getElementById('alertsBody');
+      const countEl = document.getElementById('alertCount');
+      if (!tbody) return;
+
+      // Update alert count badge - count total individual signals (results), not alert batches
+      if (countEl) {
+        let count = 0;
+        ALERTS.forEach(a => {
+          count += (a.result || []).length;
+        });
+        countEl.textContent = `${count} Alert${count !== 1 ? 's' : ''}`;
+      }
+
+      if (ALERTS.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="14" class="text-center py-12 text-slate-500 italic">Waiting for incoming signals...</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = `
+        ${ALERTS.slice(0, 100).map(a => {
+        const timeStr = new Date(a.time).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const timeClass = "text-slate-500";
+        const symbolClass = "font-bold text-slate-200";
+
+        // Generate rows for each result in the alert.
+        // If parsing failed and result is empty, render a single diagnostic row
+        // so the alert batch is still visible on the dashboard.
+        const results = (a.result && a.result.length) ? a.result : [{ symbol: "", status: "ERROR", reason: "NO_SYMBOLS_PARSED" }];
+        return results.map(r => {
+          const pChange = parseFloat(r.pct || 0);
+          const pClass = pChange > 0 ? "text-emerald-400" : pChange < 0 ? "text-rose-400" : "text-slate-400";
+
+          // Check for live position updates
+          const sym = (r.symbol || '').trim();
+          const symLabel = sym || '--';
+          const livePos = POS_MAP[sym];
+          let statusLabel = r.status;
+          let statusReason = r.reason;
+          let sideLabel = r.side; // keep original side
+
+          // Override if live position has interesting status
+          if (livePos) {
+            if (livePos.status === 'EXIT_CONDITIONS_MET') {
+              statusLabel = 'CONDITIONS MET';
+              statusReason = livePos.exit_reason || 'Exit Triggered';
+            } else if (livePos.status === 'EXITING') {
+              statusLabel = 'EXITING';
+              statusReason = livePos.exit_reason;
+            } else if (livePos.status === 'EXITED' || livePos.status === 'CLOSED') {
+              statusLabel = 'EXITED';
+              statusReason = livePos.exit_reason || livePos.exit_note || 'Exit completed';
+            } else if (livePos.status === 'OPEN') {
+              statusLabel = livePos.tp2_booked ? 'LIVE • TP2 BOOKED' : livePos.tp1_booked ? 'LIVE • TP1 BOOKED' : 'LIVE';
+            } else if (livePos.status === 'ERROR') {
+              statusLabel = 'ERROR';
+            }
+            if (livePos.side) sideLabel = livePos.side;
+          }
+
+          // Helper for status class (using dark variants)
+          const getStatusClass = (status) => {
+            const s = (status || '').toUpperCase();
+            if (s.includes('TARGET HIT')) return 'badge-highlight-target';
+            if (s.includes('SL HIT') || s.includes('TSL HIT')) return 'badge-highlight-sl';
+            if (s.includes('EXIT') || s.includes('COMPLETE') || s.includes('SQUARE')) return 'badge-highlight-completed';
+
+            switch (s) {
+              case 'ENTERED': return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+              case 'SKIPPED': return 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20';
+              case 'ERROR': return 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+              case 'CONDITIONS MET': return 'bg-gradient-to-r from-orange-500/20 to-amber-500/20 text-orange-200 border border-orange-500/40 shadow-[0_0_10px_rgba(251,146,60,0.3)] animate-pulse';
+              case 'EXITING': return 'badge-highlight-exiting';
+              default: return 'bg-slate-800 text-slate-400 border border-slate-700';
+            }
+          };
+
+          const isEntered = statusLabel === 'ENTERED';
+          const displayStatus = isEntered && sideLabel ? `ENTERED ${sideLabel}` : statusLabel;
+          const rowBg =
+            statusLabel === 'EXITED'
+              ? 'bg-emerald-500/[0.06]'
+              : isEntered
+                ? 'bg-teal-500/[0.05]'
+                : 'hover:bg-white/[0.04]';
+
+          // Position fields (filled when livePos exists)
+          const snapshot = POS_SNAPSHOT[sym] || null;
+          const p = livePos || snapshot || null;
+          if (livePos) {
+            POS_SNAPSHOT[sym] = { ...livePos };
+          }
+          const qty = p
+            ? (Number(p.initial_qty || 0) > Number(p.qty || 0)
+              ? `${p.qty}/${p.initial_qty}`
+              : p.qty)
+            : null;
+          const entry = p ? Number(p.entry_price || 0).toFixed(2) : null;
+          const tgt = p ? Number(p.target_price || 0).toFixed(2) : null;
+          const sl = p ? Number(p.sl_price || 0).toFixed(2) : null;
+          const pnlNum = p ? Number(p.pnl || 0) : null;
+          const pnl = p ? pnlNum.toFixed(2) : null;
+          const prod = p ? (p.product || 'MIS') : null;
+          const pnlClass = p ? (pnlNum > 0 ? 'text-emerald-400 font-bold' : pnlNum < 0 ? 'text-rose-400 font-bold' : 'text-slate-400') : 'text-slate-600';
+          const sector = p ? (p.sector || '') : '';
+
+          // TSL calc if we have position
+          let tslVal = null;
+          if (p) {
+            let tslPrice = 0.0;
+            if (p.strategy_mode === 'PRECISION_SNIPER') {
+              tslPrice = Number(p.trail_price || p.sl_price || 0);
+            }
+            const tslPct = Number(p.tsl_pct || 0);
+            if (tslPrice <= 0 && tslPct > 0) {
+              const stepwise = !!p.tsl_stepwise;
+              const entryPx = Number(p.entry_price || 0);
+              if (p.side === 'BUY' && Number(p.highest || 0) > 0) {
+                let anchor = Number(p.highest);
+                if (stepwise && entryPx > 0) {
+                  const step = tslPct / 100.0;
+                  const idx = Math.max(0, Math.floor(((Number(p.highest) / entryPx) - 1.0) / step));
+                  anchor = entryPx * (1.0 + idx * step);
+                }
+                tslPrice = anchor * (1.0 - tslPct / 100.0);
+              } else if (p.side === 'SELL' && Number(p.lowest || 0) > 0) {
+                let anchor = Number(p.lowest);
+                if (stepwise && entryPx > 0) {
+                  const step = tslPct / 100.0;
+                  const idx = Math.max(0, Math.floor((1.0 - (Number(p.lowest) / entryPx)) / step));
+                  anchor = entryPx * (1.0 - idx * step);
+                }
+                tslPrice = anchor * (1.0 + tslPct / 100.0);
+              }
+            }
+            if (tslPrice > 0) tslVal = tslPrice.toFixed(2);
+          }
+
+          return `
+            <tr class="${rowBg} transition-all duration-300 border-b border-white/5 last:border-0 group">
+              <td class="px-3 py-3">
+                <span class="text-xs font-bold text-blue-300 tracking-wide">${a.alert_name}</span>
+              </td>
+              <td class="px-3 py-3 whitespace-nowrap text-xs ${timeClass} font-mono">${timeStr}</td>
+              <td class="px-3 py-3 whitespace-nowrap text-sm ${symbolClass}">
+                <div class="flex flex-col">
+                  <span>${symLabel}</span>
+                  ${sector ? `<span class="inline-flex items-center px-2 py-0.5 mt-1 rounded text-[9px] font-black uppercase tracking-widest bg-cyan-500/15 text-cyan-300 border border-cyan-500/25 w-fit">${sector}</span>` : ''}
+                </div>
+              </td>
+              <td class="px-3 py-3 whitespace-nowrap text-right font-mono font-bold text-5xl text-cyan-400" data-symbol="${sym}" data-field="ltp">                
+                ${p && p.ltp ? Number(p.ltp).toFixed(2) : (r.ltp ? r.ltp.toFixed(2) : '--')}
+              </td>
+              <td class="px-3 py-3 text-center ${p ? 'text-slate-200' : 'text-slate-300'}">${prod || '--'}</td>
+              <td class="px-3 py-3 text-center">
+                ${sideLabel ? `<span class="px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-[0.2em] ${sideLabel === 'BUY' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">${sideLabel}</span>` : '<span class="text-slate-600">--</span>'}
+              </td>
+              <td class="px-3 py-3 text-right ${p ? 'text-cyan-400 font-bold' : 'text-slate-600'}">${qty ?? '--'}</td>
+              <td class="px-3 py-3 text-right ${p ? 'text-slate-200' : 'text-slate-300'}">${entry ?? '--'}</td>
+              <td class="px-3 py-3 text-right ${p ? 'text-emerald-400 font-bold' : 'text-slate-600'}">${tgt ?? '--'}</td>
+              <td class="px-3 py-3 text-right ${p ? 'text-rose-400 font-bold' : 'text-slate-600'}">${sl ?? '--'}</td>
+              <td class="px-3 py-3 text-right ${p ? 'text-amber-400 font-bold' : 'text-slate-600'} atsl-${safeId(sym)}">${tslVal ?? '--'}</td>
+              <td class="px-3 py-3 text-right ${p ? pnlClass : 'text-slate-600'}" data-symbol="${sym}" data-field="pnl">${pnl ?? '--'}</td>
+              <td class="px-3 py-3 text-center">
+                <div class="flex flex-col items-center gap-1">
+                  <span class="px-2.5 py-1 rounded-full ${statusLabel === 'LIVE' ? 'text-[10px]' : 'text-[8px]'} font-black tracking-widest ${getStatusClass(statusLabel)}">
+                    ${statusLabel === 'LIVE' ? `<span class="inline-flex items-center gap-1.5 text-emerald-300 drop-shadow-[0_0_6px_rgba(16,185,129,0.7)]"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.7)] animate-pulse"></span> LIVE</span>` : displayStatus}
+                  </span>
+                  ${statusLabel === 'ENTERED' && sideLabel
+              ? ``
+              : (statusReason ? `<div class="text-[9px] text-slate-500 mt-0.5 max-w-[140px] truncate mx-auto" title="${statusReason}">${statusReason}</div>` : '')}
+                </div>
+              </td>
+              <td class="px-3 py-3 text-center">
+                ${p ? `<button onclick="squareoff('${p.symbol}')" class="px-3 py-1 text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500/20 hover:text-white hover:border-rose-500/40 transition-all duration-300">SQ OFF</button>` : '<span class="text-slate-600">--</span>'}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }).join('')}
+      `;
+    }
+
+    function scheduleRenderAlerts(delay = 250) {
+      if (_alertsRenderTimer) return;
+      _alertsRenderTimer = setTimeout(() => {
+        _alertsRenderTimer = null;
+        renderAlerts();
+      }, delay);
+    }
+
+    async function loadAlerts() {
+      try {
+        const d = await (await fetch(`/api/alerts?user_id=${USER_ID}&limit=50`)).json();
+        ALERTS.length = 0;
+        (d.alerts || []).forEach(a => {
+          let t = 0;
+          if (a.ts_ms) {
+            t = Number(a.ts_ms);
+          } else if (a.time) {
+            t = Date.parse(a.time);
+          }
+          if (!t || isNaN(t)) t = Date.now();
+          ALERTS.push({
+            alert_name: a.alert_name,
+            time: t,
+            result: a.result || [],
+            symbols: a.symbols
+          });
+        });
+        ALERTS.sort((a, b) => b.time - a.time);
+        renderAlerts();
+
+        const allSyms = new Set();
+        ALERTS.forEach(a => {
+          (a.result || []).forEach(r => { if (r.symbol) allSyms.add(r.symbol); });
+          if (Array.isArray(a.symbols)) a.symbols.forEach(s => allSyms.add(s));
+        });
+
+        if (allSyms.size > 0) {
+          const symList = Array.from(allSyms);
+          const BATCH_SIZE = 50;
+          for (let i = 0; i < symList.length; i += BATCH_SIZE) {
+            const batch = symList.slice(i, i + BATCH_SIZE);
+            fetch("/api/subscribe-symbols", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ user_id: USER_ID, symbols: batch })
+            }).catch(e => console.error("Auto-sub batch failed", e));
+          }
+        }
+      } catch (e) { console.error(e); }
+    }
+
+    async function refreshPositions() {
+      const d = await (await fetch(`/api/positions?user_id=${USER_ID}`)).json();
+      const pos = d.positions || [];
+      const activePos = pos.filter(p => ['OPEN', 'EXITING', 'EXIT_CONDITIONS_MET', 'ERROR'].includes(p.status));
+      activePos.sort((a, b) => a.symbol.localeCompare(b.symbol));
+      POS_MAP = {};
+      pos.forEach(p => {
+        POS_MAP[p.symbol] = p;
+        if (p && p.symbol) POS_SNAPSHOT[p.symbol] = { ...p };
+      });
+      renderPositions(activePos);
+      scheduleRenderAlerts();
+    }
+
+    async function refreshAll() {
+      await refreshPositions();
+      await loadAlerts();
+      renderAlerts();
+    }
+
+    function renderPositions(rows) {
+      const tbody = document.getElementById("posBody");
+      const countEl = document.getElementById("posCount");
+      const pnlEl = document.getElementById("totalPnlBadge");
+
+      let totalPnl = 0.0;
+      if (rows) {
+        rows.forEach(p => totalPnl += Number(p.pnl || 0));
+      }
+
+      if (countEl) countEl.textContent = `${rows ? rows.length : 0} Active Pos`;
+
+      if (pnlEl) {
+        const val = totalPnl.toFixed(2);
+        const colorClass = totalPnl > 0 ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.4)]" : totalPnl < 0 ? "text-rose-400 drop-shadow-[0_0_8px_rgba(251,113,133,0.4)]" : "text-white";
+        const sign = totalPnl > 0 ? '+' : '';
+        pnlEl.className = `net-pnl-pill`;
+        pnlEl.innerHTML = `<span class="pnl-label">Net P&amp;L:</span><span class="pnl-value">&#8377; ${sign}${val}</span>`;
+      }
+
+      if (rows && rows.length) {
+        rows.forEach(p => {
+          if (p && p.symbol) POS_SNAPSHOT[p.symbol] = { ...p };
+        });
+      }
+
+      if (tbody) {
+        // Positions are rendered into alert rows; keep this body empty to avoid duplicates.
+        tbody.innerHTML = "";
+      }
+    }
+
+    async function squareoff(sym) {
+      try {
+        const r = await fetch("/api/position/squareoff", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: USER_ID, symbol: sym })
+        });
+        const d = await r.json();
+        if (d.error) throw d.error;
+        toast(`Exit order sent for ${sym}`);
+        setTimeout(refreshPositions, 500);
+      } catch (e) { toast(e, 'error'); }
+    }
+
+    async function exitAllPositions() {
+      if (!await openConfirm("⚠️ ARE YOU SURE? This will close ALL open positions immediately.")) return;
+      try {
+        const r = await fetch("/api/position/exit-all", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: USER_ID })
+        });
+        const d = await r.json();
+        toast(`Triggered exit for ${d.count} positions`);
+        // Auto refresh happens via WS, but manual sync is good backup
+      } catch (e) { toast("Failed to exit all", 'error'); }
+    }
+
+    async function clearAllAlerts() {
+      if (!await openConfirm("⚠️ Delete ALL alert history? This cannot be undone.")) return;
+      try {
+        const r = await fetch(`/api/alerts?user_id=${USER_ID}`, {
+          method: "DELETE"
+        });
+        const d = await r.json();
+        if (d.error) throw d.error;
+        toast("All alerts cleared successfully");
+        loadAlerts(); // Refresh to show empty table
+      } catch (e) { toast(e, 'error'); }
+    }
+
+    /* --- WebSocket --- */
+    /* --- WebSocket --- */
+    function startWS() {
+      const el = document.getElementById("wsbadge");
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      WS = new WebSocket(`${proto}://${location.host}/ws/feed?user_id=${USER_ID}`);
+
+      WS.onopen = () => {
+        el.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 9a7.5 7.5 0 0115 0M7.5 12a4.5 4.5 0 019 0M10.5 15a1.5 1.5 0 013 0"></path>
+          </svg>
+          WS Live`;
+        el.className = "ws-pill ws-live";
+      };
+
+      WS.onclose = () => {
+        el.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 9a7.5 7.5 0 0115 0M7.5 12a4.5 4.5 0 019 0M9 18l6-6M15 18l-6-6"></path>
+          </svg>
+          WS Offline`;
+        el.className = "ws-pill ws-offline";
+        setTimeout(startWS, 2000);
+      };
+
+      WS.onmessage = (ev) => {
+        try {
+          const d = JSON.parse(ev.data);
+          // console.log("Incoming WS:", d); // Keep for debug if needed
+
+          if (d.type === 'tick') {
+            const s = d.symbol;
+            const sid = safeId(s); // Use safe ID for alerts
+            const ltp = Number(d.ltp || 0).toFixed(2);
+            const close = Number(d.close || 0);
+            const pctChange = close > 0 ? ((d.ltp - close) / close * 100).toFixed(2) : '0.00';
+            const pctStr = pctChange + '%';
+
+            // Update Alert Table - LTP & % Change using data attributes (Robust)
+            document.querySelectorAll(`[data-symbol="${s}"][data-field="ltp"]`).forEach(el => {
+              el.innerText = ltp;
+              const ltpColor = d.ltp > close ? 'text-emerald-400' : d.ltp < close ? 'text-rose-400' : 'text-slate-300';
+              // Preserve base classes + update color
+              el.className = `text-right font-mono font-bold text-xl ${ltpColor}`;
+            });
+
+            document.querySelectorAll(`[data-symbol="${s}"][data-field="pct"]`).forEach(el => {
+              el.innerText = pctStr;
+              const pctColor = parseFloat(pctChange) > 0 ? 'text-emerald-400' : parseFloat(pctChange) < 0 ? 'text-rose-400' : 'text-slate-400';
+              el.className = `text-right font-mono ${pctColor}`;
+            });
+
+            // Update P&L if available in POS_MAP (without full re-render)
+            const pSnap = POS_MAP[s];
+            if (pSnap && typeof pSnap.pnl !== "undefined") {
+              const pnlVal = Number(pSnap.pnl || 0).toFixed(2);
+              const pnlColor = pSnap.pnl > 0 ? 'text-emerald-400 font-bold' : pSnap.pnl < 0 ? 'text-rose-400 font-bold' : 'text-slate-400';
+              document.querySelectorAll(`[data-symbol="${s}"][data-field="pnl"]`).forEach(el => {
+                el.innerText = pnlVal;
+                el.className = `text-right ${pnlColor}`;
+              });
+            }
+
+            // Update TSL in Alert Table dynamically from POS_MAP
+            const p = POS_MAP[s]; // Lookup from map by raw symbol
+            if (p) {
+              let tslPrice = 0.0;
+              const tslPct = Number(p.tsl_pct || 0);
+              // Update high/low locally for immediate TSL feedback
+              if (p.side === 'BUY') {
+                p.highest = Math.max(Number(p.highest || 0), Number(d.ltp));
+                if (tslPct > 0 && p.highest > 0) tslPrice = p.highest * (1.0 - tslPct / 100.0);
+              } else if (p.side === 'SELL') {
+                p.lowest = (Number(p.lowest) === 0 ? Number(d.ltp) : Math.min(Number(p.lowest), Number(d.ltp)));
+                if (tslPct > 0 && p.lowest > 0) tslPrice = p.lowest * (1.0 + tslPct / 100.0);
+              }
+
+              if (tslPrice > 0) {
+                const tslVal = tslPrice.toFixed(2);
+                document.querySelectorAll(`.atsl-${sid}`).forEach(el => el.innerText = tslVal);
+              }
+            }
+
+            // Update Position Table
+            const pLtp = document.getElementById(`pltp-${s}`);
+            if (pLtp) pLtp.innerText = ltp;
+          }
+
+          if (d.type === 'alert') {
+            // Toast logic removed as per user request (only show in table)
+            loadAlerts();
+          }
+
+          if (d.type === 'pos' || d.type === 'pos_refresh') {
+            if (d.type === 'pos' && d.position) {
+              // Update or remove from map based on status
+              if (d.position.status === 'OPEN') {
+                POS_MAP[d.position.symbol] = d.position;
+              } else {
+                // Remove closed/error positions from map
+                delete POS_MAP[d.position.symbol];
+              }
+
+              // Render only OPEN positions
+              const activePos = Object.values(POS_MAP).filter(p => p.status === 'OPEN');
+              // Sort alphabetically by symbol
+              activePos.sort((a, b) => a.symbol.localeCompare(b.symbol));
+
+              renderPositions(activePos);
+              scheduleRenderAlerts();
+              if (d.position.status !== 'OPEN') {
+                loadAlerts();
+              }
+            } else {
+              refreshPositions();
+              loadAlerts();
+            }
+          }
+
+        } catch (e) { }
+      };
+    }
+
+    // Init
+    document.addEventListener("DOMContentLoaded", () => {
+      createStars();
+
+      // Mobile: 3-dot topbar menu toggle
+      const moreBtn = document.getElementById("topbarMoreBtn");
+      const actions = document.getElementById("topbarActions");
+      if (moreBtn && actions) {
+        const closeMenu = () => {
+          actions.classList.remove("is-open");
+          moreBtn.setAttribute("aria-expanded", "false");
+        };
+
+        moreBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          actions.classList.toggle("is-open");
+          moreBtn.setAttribute("aria-expanded", actions.classList.contains("is-open") ? "true" : "false");
+        });
+
+        document.addEventListener("click", () => closeMenu());
+        actions.addEventListener("click", (e) => e.stopPropagation());
+        window.addEventListener("scroll", () => closeMenu(), { passive: true });
+      }
+
+      refreshZ();
+      // checkAutoSqOff(); // Removed as we switched to manual button
+      setInterval(refreshZ, 5000);
+      loadAlerts();
+      refreshPositions();
+      startWS();
+
+      // Check for errors in URL (e.g. from failed login redirect)
+      const urlParams = new URLSearchParams(window.location.search);
+      const err = urlParams.get('error');
+      if (err === 'missing_creds') {
+        setTimeout(() => {
+          toast("Please SAVE your API Key & Secret first!", "error");
+          openCred(); // Open the credentials modal for them
+        }, 500);
+      }
+    });
+
+    function createStars() {
+      const container = document.getElementById("stars");
+      if (!container) return;
+      const count = 60; // Number of stars
+      for (let i = 0; i < count; i++) {
+        const star = document.createElement("div");
+        star.className = "star";
+        const xy = [Math.random() * 100, Math.random() * 100];
+        const duration = 2 + Math.random() * 3; // 2-5s
+        const delay = Math.random() * 5;
+        const size = 1 + Math.random() * 2; // 1-3px
+        const opacity = 0.3 + Math.random() * 0.7;
+
+        star.style.left = `${xy[0]}%`;
+        star.style.top = `${xy[1]}%`;
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
+        star.style.setProperty("--duration", `${duration}s`);
+        star.style.setProperty("--delay", `${delay}s`);
+        star.style.setProperty("--opacity", opacity);
+
+        container.appendChild(star);
+      }
+    }
+
+  </script>
+</body>
+
+</html>

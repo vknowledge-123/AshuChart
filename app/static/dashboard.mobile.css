@@ -1,0 +1,200 @@
+/* Mobile-only UI overrides for `dashboard.html`.
+   Kept separate to avoid touching existing desktop layout. */
+
+@media (max-width: 640px) {
+  /* Convert fixed navbar to sticky so it never overlaps content on small screens */
+  nav {
+    position: sticky !important;
+    top: 0 !important;
+  }
+
+  /* Reduce the forced top padding that was compensating for fixed nav */
+  main {
+    padding-top: 0.75rem !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  /* Topbar: allow natural height + keep it clean */
+  .topbar-row {
+    height: auto !important;
+    min-height: 52px;
+    padding: 10px 12px !important;
+    gap: 10px;
+  }
+
+  .logo-wrap {
+    gap: 10px !important;
+    margin-left: 0 !important;
+  }
+
+  nav .brand-title {
+    font-size: 18px !important;
+    line-height: 1.05 !important;
+  }
+
+  nav .brand-sub {
+    font-size: 9px !important;
+    line-height: 1.05 !important;
+  }
+
+  /* Always keep actions behind the hamburger on mobile */
+  /* Default (closed): show ONLY Kite badge on the top bar */
+  #topbarActions {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    /* override old mobile rule in dashboard.html that made this absolute dropdown */
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  /* Hide everything except the Kite badge */
+  #topbarActions > * {
+    display: none !important;
+  }
+
+  #topbarActions #zbadge {
+    display: inline-flex !important;
+  }
+
+  /* Dropdown panel (opened via `.is-open`) */
+  #topbarActions.is-open,
+  .topbar-actions.is-open {
+    display: flex !important;
+    position: absolute !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: none !important;
+    top: calc(100% + 8px) !important;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px !important;
+    border-radius: 16px !important;
+    background: rgba(15, 23, 42, 0.98) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7) !important;
+    z-index: 9999 !important;
+    max-height: calc(100vh - 90px);
+    overflow: auto;
+  }
+
+  /* When opened: show all actions inside the dropdown */
+  #topbarActions.is-open > * {
+    display: flex !important;
+  }
+
+  /* Unhide anything that uses Tailwind `hidden sm:flex` / `hidden md:flex` etc inside the open panel */
+  #topbarActions.is-open .hidden {
+    display: inline-flex !important;
+  }
+
+  /* Menu-open: remove desktop-only divider/paddings for the action-tiles row */
+  #topbarActions.is-open .border-l {
+    border-left: 0 !important;
+    padding-left: 0 !important;
+  }
+
+  #topbarActions.is-open .pr-2 {
+    padding-right: 0 !important;
+  }
+
+  .topbar-actions.is-open > * {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Ensure hidden Tailwind items become visible inside the opened panel */
+  .topbar-actions.is-open .user-pill,
+  .topbar-actions.is-open #zbadge,
+  .topbar-actions.is-open #wsbadge,
+  .topbar-actions.is-open #restartTradingBtn,
+  .topbar-actions.is-open #killBtn {
+    display: inline-flex !important;
+  }
+
+  /* Section header buttons row: make it horizontally scrollable instead of overflowing */
+  /* Stack title (one line) + buttons under it */
+  section.animate-enter > div.flex.items-center.justify-between.mb-1 {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    align-items: flex-start !important;
+  }
+
+  section.animate-enter > div.flex.items-center.justify-between.mb-1 h2 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .metrics-row {
+    width: 100%;
+    flex-wrap: wrap !important;
+    overflow: visible !important;
+    gap: 8px !important;
+    padding-bottom: 2px;
+  }
+
+  /* Tighten padding for the buttons/badges beside the table title */
+  body .metrics-row .btn {
+    min-height: 32px;
+    padding: 6px 8px !important;
+    font-size: 10px !important;
+    border-radius: 10px !important;
+  }
+
+  body .metrics-row .btn svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  body #alertCount,
+  body #posCount {
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+    white-space: nowrap;
+  }
+
+  body #totalPnlBadge {
+    padding: 4px 8px !important;
+    gap: 6px !important;
+    white-space: nowrap;
+  }
+
+  body #totalPnlBadge .pnl-label {
+    font-size: 9px !important;
+  }
+
+  body #totalPnlBadge .pnl-value {
+    font-size: 11px !important;
+  }
+
+  /* Make more table columns visible by slightly tightening cell padding/type */
+  body .table-container th,
+  body .table-container td {
+    padding: 0.14rem 0.28rem !important;
+    font-size: 9px !important;
+    line-height: 1.15 !important;
+    white-space: nowrap;
+  }
+
+  /* Sticky table header should sit below the sticky navbar */
+  table thead {
+    position: sticky;
+    top: 62px;
+    z-index: 20;
+  }
+}

@@ -1,0 +1,17 @@
+.env
+__pycache__/
+*.pyc
+*.log
+myvenv/
+venv/
+.venv
+.idea/
+.vscode/
+
+# SSL Certificates (NEVER commit private keys!)
+*.pem
+*.key
+*.crt
+*.csr
+.cert/
+ssl/

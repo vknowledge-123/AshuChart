@@ -1,0 +1,365 @@
+# app/stock_sector.py
+"""
+stock_sector.py
+
+Purpose:
+- Provide STOCK_INDEX_MAPPING used by TradeEngine sector filter and by main.py base universe.
+- Keep keys as NSE trading symbols (uppercase).
+- Includes a small normalization helper so symbols like "M&M" / "BAJAJ-AUTO" stay consistent.
+
+Notes:
+- Your TradeEngine currently does: self.sym_sector: Dict[str, str] = STOCK_INDEX_MAPPING
+  so this module must export STOCK_INDEX_MAPPING as a dict[str, str].
+
+If you want to add more symbols, just extend the dict below.
+"""
+
+from __future__ import annotations
+from typing import Dict
+
+
+def norm_symbol(sym: str) -> str:
+    """
+    Normalize incoming symbols to match keys in STOCK_INDEX_MAPPING.
+
+    Examples:
+      "NSE:ITC" -> "ITC"
+      "m&m"     -> "M&M"
+      "BAJAJ-AUTO" stays "BAJAJ-AUTO"
+    """
+    s = (sym or "").strip().upper()
+    if not s:
+        return ""
+    # Strip exchange prefix like NSE: or BSE:
+    if ":" in s:
+        s = s.split(":", 1)[1].strip()
+
+    # Keep common NSE allowed chars (includes & and -)
+    allowed = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-&")
+    s = "".join(ch for ch in s if ch in allowed)
+    return s
+
+
+# -------------------------------------------------------------------
+# STOCK -> INDEX / SECTOR GROUP
+# -------------------------------------------------------------------
+# This mapping is intentionally "sector / index group" style strings,
+# not strictly NSE "index membership" only. Your sector filter uses these
+# strings as "sector buckets" for ranking.
+#
+# You can rename values to whatever you want; just keep them consistent.
+# -------------------------------------------------------------------
+STOCK_INDEX_MAPPING: Dict[str, str] = {
+    'TVSMOTOR': 'NIFTY AUTO',
+    'MARUTI': 'NIFTY AUTO',
+    'M&M': 'NIFTY AUTO',
+    'TMPV': 'NIFTY AUTO',
+    'BAJAJ-AUTO': 'NIFTY AUTO',
+    'EICHERMOT': 'NIFTY AUTO',
+    'HEROMOTOCO': 'NIFTY AUTO',
+    'TIINDIA': 'NIFTY AUTO',
+    'ASHOKLEY': 'NIFTY AUTO',
+    'BHARATFORG': 'NIFTY AUTO',
+    'MRF': 'NIFTY AUTO',
+    'MOTHERSON': 'NIFTY AUTO',
+    'SONACOMS': 'NIFTY AUTO',
+    'BALKRISIND': 'NIFTY AUTO',
+    'BOSCHLTD': 'NIFTY AUTO',
+    'TCS': 'NIFTY IT',
+    'INFY': 'NIFTY IT',
+    'HCLTECH': 'NIFTY IT',
+    'WIPRO': 'NIFTY IT',
+    'TECHM': 'NIFTY IT',
+    'LTIM': 'NIFTY IT',
+    'PERSISTENT': 'NIFTY IT',
+    'MPHASIS': 'NIFTY IT',
+    'COFORGE': 'NIFTY IT',
+    'OFSS': 'NIFTY IT',
+    'ADANIENT': 'NIFTY METAL',
+    'APLAPOLLO': 'NIFTY METAL',
+    'HINDALCO': 'NIFTY METAL',
+    'HINDCOPPER': 'NIFTY METAL',
+    'HINDZINC': 'NIFTY METAL',
+    'JINDALSTEL': 'NIFTY METAL',
+    'JSL': 'NIFTY METAL',
+    'JSWSTEEL': 'NIFTY METAL',
+    'LLOYDSME': 'NIFTY METAL',
+    'NATIONALUM': 'NIFTY METAL',
+    'NMDC': 'NIFTY METAL',
+    'RATNAMANI': 'NIFTY METAL',
+    'SAIL': 'NIFTY METAL',
+    'TATASTEEL': 'NIFTY METAL',
+    'VEDL': 'NIFTY METAL',
+    'BAJFINANCE': 'NIFTY FINSEREXBNK',
+    'BAJAJFINSV': 'NIFTY FINSEREXBNK',
+    'HDFCLIFE': 'NIFTY FINSEREXBNK',
+    'ICICIPRULI': 'NIFTY FINSEREXBNK',
+    'SBILIFE': 'NIFTY FINSEREXBNK',
+    'HDFCAMC': 'NIFTY FINSEREXBNK',
+    'ICICIGI': 'NIFTY FINSEREXBNK',
+    'CHOLAFIN': 'NIFTY FINSEREXBNK',
+    'MUTHOOTFIN': 'NIFTY FINSEREXBNK',
+    'RECLTD': 'NIFTY FINSEREXBNK',
+    'PFC': 'NIFTY FINSEREXBNK',
+    'LICHSGFIN': 'NIFTY FINSEREXBNK',
+    'SHRIRAMFIN': 'NIFTY FINSEREXBNK',
+    'SUNDARMFIN': 'NIFTY FINSEREXBNK',
+    'CANFINHOME': 'NIFTY FINSEREXBNK',
+    'IIFL': 'NIFTY FINSEREXBNK',
+    'MANAPPURAM': 'NIFTY FINSEREXBNK',
+    'MOTILALOFS': 'NIFTY FINSEREXBNK',
+    'CREDITACC': 'NIFTY FINSEREXBNK',
+    'POLICYBZR': 'NIFTY MS FIN SERV',
+    'M&MFIN': 'NIFTY MS FIN SERV',
+    'MFSL': 'NIFTY MS FIN SERV',
+    'IEX': 'NIFTY MS FIN SERV',
+    'SBICARD': 'NIFTY MS FIN SERV',
+    'PAYTM': 'NIFTY MS FIN SERV',
+    'YESBANK': 'NIFTY MS FIN SERV',
+    'BANDHANBNK': 'NIFTY MS FIN SERV',
+    'MCX': 'NIFTY MS FIN SERV',
+    'ANGELONE': 'NIFTY MS FIN SERV',
+    'ABCAPITAL': 'NIFTY MS FIN SERV',
+    'RBLBANK': 'NIFTY MS FIN SERV',
+    'CDSL': 'NIFTY MS FIN SERV',
+    'LTF': 'NIFTY MS FIN SERV',
+    'UNIONBANK': 'NIFTY MS FIN SERV',
+    'POONAWALLA': 'NIFTY MS FIN SERV',
+    'BANKINDIA': 'NIFTY MS FIN SERV',
+    'INDIANB': 'NIFTY MS FIN SERV',
+    'PIRAMALFIN': 'NIFTY MS FIN SERV',
+    'HUDCO': 'NIFTY MS FIN SERV',
+    'CAMS': 'NIFTY MS FIN SERV',
+    'IDFCFIRSTB': 'NIFTY MS FIN SERV',
+    'FEDERALBNK': 'NIFTY MS FIN SERV',
+    'AUBANK': 'NIFTY MS FIN SERV',
+    'BSE': 'NIFTY MS FIN SERV',
+    'FORTIS': 'NIFTY HEALTHCARE',
+    'LUPIN': 'NIFTY HEALTHCARE',
+    'AUROPHARMA': 'NIFTY HEALTHCARE',
+    'SUNPHARMA': 'NIFTY HEALTHCARE',
+    'ALKEM': 'NIFTY HEALTHCARE',
+    'CIPLA': 'NIFTY HEALTHCARE',
+    'BIOCON': 'NIFTY HEALTHCARE',
+    'DRREDDY': 'NIFTY HEALTHCARE',
+    'TORNTPHARM': 'NIFTY HEALTHCARE',
+    'SYNGENE': 'NIFTY HEALTHCARE',
+    'ZYDUSLIFE': 'NIFTY HEALTHCARE',
+    'APOLLOHOSP': 'NIFTY HEALTHCARE',
+    'ABBOTINDIA': 'NIFTY HEALTHCARE',
+    'IPCALAB': 'NIFTY HEALTHCARE',
+    'GLENMARK': 'NIFTY HEALTHCARE',
+    'GRANULES': 'NIFTY HEALTHCARE',
+    'DIVISLAB': 'NIFTY HEALTHCARE',
+    'MAXHEALTH': 'NIFTY HEALTHCARE',
+    'LAURUSLABS': 'NIFTY HEALTHCARE',
+    'MANKIND': 'NIFTY HEALTHCARE',
+    'MEDANTA': 'NIFTY MIDSML HLTH',
+    'JBCHEPHARM': 'NIFTY MIDSML HLTH',
+    'RAINBOW': 'NIFTY MIDSML HLTH',
+    'GLAXO': 'NIFTY MIDSML HLTH',
+    'PFIZER': 'NIFTY MIDSML HLTH',
+    'POLYMED': 'NIFTY MIDSML HLTH',
+    'PPLPHARMA': 'NIFTY MIDSML HLTH',
+    'ASTERDM': 'NIFTY MIDSML HLTH',
+    'GLAND': 'NIFTY MIDSML HLTH',
+    'LALPATHLAB': 'NIFTY MIDSML HLTH',
+    'APLLTD': 'NIFTY MIDSML HLTH',
+    'NH': 'NIFTY MIDSML HLTH',
+    'NEULANDLAB': 'NIFTY MIDSML HLTH',
+    'AJANTPHARM': 'NIFTY MIDSML HLTH',
+    'KIMS': 'NIFTY MIDSML HLTH',
+    'NATCOPHARM': 'NIFTY MIDSML HLTH',
+    'BANKBARODA': 'NIFTY PSU BANK',
+    'MAHABANK': 'NIFTY PSU BANK',
+    'CANBK': 'NIFTY PSU BANK',
+    'PSB': 'NIFTY PSU BANK',
+    'CENTRALBK': 'NIFTY PSU BANK',
+    'IOB': 'NIFTY PSU BANK',
+    'PNB': 'NIFTY PSU BANK',
+    'SBIN': 'NIFTY PSU BANK',
+    'UCOBANK': 'NIFTY PSU BANK',
+    'CROMPTON': 'NIFTY CONSR DURBL',
+    'VGUARD': 'NIFTY CONSR DURBL',
+    'TITAN': 'NIFTY CONSR DURBL',
+    'KALYANKJIL': 'NIFTY CONSR DURBL',
+    'BATAINDIA': 'NIFTY CONSR DURBL',
+    'DIXON': 'NIFTY CONSR DURBL',
+    'HAVELLS': 'NIFTY CONSR DURBL',
+    'KAJARIACER': 'NIFTY CONSR DURBL',
+    'CERA': 'NIFTY CONSR DURBL',
+    'BLUESTARCO': 'NIFTY CONSR DURBL',
+    'PGEL': 'NIFTY CONSR DURBL',
+    'VOLTAS': 'NIFTY CONSR DURBL',
+    'WHIRLPOOL': 'NIFTY CONSR DURBL',
+    'AMBER': 'NIFTY CONSR DURBL',
+    'CENTURYPLY': 'NIFTY CONSR DURBL',
+    'UNITDSPR': 'NIFTY FMCG',
+    'HINDUNILVR': 'NIFTY FMCG',
+    'DABUR': 'NIFTY FMCG',
+    'GODREJCP': 'NIFTY FMCG',
+    'ITC': 'NIFTY FMCG',
+    'NESTLEIND': 'NIFTY FMCG',
+    'MARICO': 'NIFTY FMCG',
+    'TATACONSUM': 'NIFTY FMCG',
+    'PATANJALI': 'NIFTY FMCG',
+    'BRITANNIA': 'NIFTY FMCG',
+    'UBL': 'NIFTY FMCG',
+    'VBL': 'NIFTY FMCG',
+    'RADICO': 'NIFTY FMCG',
+    'EMAMILTD': 'NIFTY FMCG',
+    'COLPAL': 'NIFTY FMCG',
+    'HDFCBANK': 'NIFTY PVT BANK',
+    'KOTAKBANK': 'NIFTY PVT BANK',
+    'AXISBANK': 'NIFTY PVT BANK',
+    'ICICIBANK': 'NIFTY PVT BANK',
+    'INDUSINDBK': 'NIFTY PVT BANK',
+    'RELIANCE': 'NIFTY ENERGY',
+    'NTPC': 'NIFTY ENERGY',
+    'ONGC': 'NIFTY ENERGY',
+    'POWERGRID': 'NIFTY ENERGY',
+    'COALINDIA': 'NIFTY ENERGY',
+    'ADANIPOWER': 'NIFTY ENERGY',
+    'IOC': 'NIFTY ENERGY',
+    'ADANIGREEN': 'NIFTY ENERGY',
+    'BPCL': 'NIFTY ENERGY',
+    'TATAPOWER': 'NIFTY ENERGY',
+    'GAIL': 'NIFTY ENERGY',
+    'ABB': 'NIFTY ENERGY',
+    'ADANIENSOL': 'NIFTY ENERGY',
+    'SIEMENS': 'NIFTY ENERGY',
+    'PETRONET': 'NIFTY ENERGY',
+    'CESC': 'NIFTY ENERGY',
+    'IGL': 'NIFTY ENERGY',
+    'JSWENERGY': 'NIFTY ENERGY',
+    'OIL': 'NIFTY ENERGY',
+    'MGL': 'NIFTY ENERGY',
+    'POWERINDIA': 'NIFTY ENERGY',
+    'GVT&D': 'NIFTY ENERGY',
+    'AEGISLOG': 'NIFTY ENERGY',
+    'THERMAX': 'NIFTY ENERGY',
+    'CGPOWER': 'NIFTY ENERGY',
+    'BHEL': 'NIFTY ENERGY',
+    'NLCINDIA': 'NIFTY ENERGY',
+    'JPPOWER': 'NIFTY ENERGY',
+    'SUZLON': 'NIFTY ENERGY',
+    'SJVN': 'NIFTY ENERGY',
+    'GSPL': 'NIFTY ENERGY',
+    'CASTROLIND': 'NIFTY ENERGY',
+    'HINDPETRO': 'NIFTY ENERGY',
+    'INOXWIND': 'NIFTY ENERGY',
+    'GUJGASLTD': 'NIFTY ENERGY',
+    'NHPC': 'NIFTY CPSE',
+    'BEL': 'NIFTY CPSE',
+    'NBCC': 'NIFTY CPSE',
+    'COCHINSHIP': 'NIFTY CPSE',
+    'SONATSOFTW': 'NIFTY MS IT TELCM',
+    'BHARTIHEXA': 'NIFTY MS IT TELCM',
+    'LTTS': 'NIFTY MS IT TELCM',
+    'INDUSTOWER': 'NIFTY MS IT TELCM',
+    'TATACOMM': 'NIFTY MS IT TELCM',
+    'INTELLECT': 'NIFTY MS IT TELCM',
+    'TATAELXSI': 'NIFTY MS IT TELCM',
+    'TATATECH': 'NIFTY MS IT TELCM',
+    'CYIENT': 'NIFTY MS IT TELCM',
+    'IDEA': 'NIFTY MS IT TELCM',
+    'KPITTECH': 'NIFTY MS IT TELCM',
+    'BSOFT': 'NIFTY MS IT TELCM',
+    'AFFLE': 'NIFTY MS IT TELCM',
+    'HFCL': 'NIFTY MS IT TELCM',
+    'TEJASNET': 'NIFTY MS IT TELCM',
+    'ZENSARTECH': 'NIFTY MS IT TELCM',
+    'HAL': 'NIFTY IND DEFENCE',
+    'MAZDOCK': 'NIFTY IND DEFENCE',
+    'BEML': 'NIFTY IND DEFENCE',
+    'BDL': 'NIFTY IND DEFENCE',
+    'SOLARINDS': 'NIFTY IND DEFENCE',
+    'GRSE': 'NIFTY IND DEFENCE',
+    'ASTRAMICRO': 'NIFTY IND DEFENCE',
+    'UNIMECH': 'NIFTY IND DEFENCE',
+    'DYNAMATECH': 'NIFTY IND DEFENCE',
+    'DATAPATTNS': 'NIFTY IND DEFENCE',
+    'MTARTECH': 'NIFTY IND DEFENCE',
+    'CYIENTDLM': 'NIFTY IND DEFENCE',
+    'ZENTEC': 'NIFTY IND DEFENCE',
+    'MIDHANI': 'NIFTY IND DEFENCE',
+    'DCXINDIA': 'NIFTY IND DEFENCE',
+    'ZEEL': 'NIFTY MEDIA',
+    'NAZARA': 'NIFTY MEDIA',
+    'DBCORP': 'NIFTY MEDIA',
+    'TIPSMUSIC': 'NIFTY MEDIA',
+    'PVRINOX': 'NIFTY MEDIA',
+    'NETWORK18': 'NIFTY MEDIA',
+    'HATHWAY': 'NIFTY MEDIA',
+    'SUNTV': 'NIFTY MEDIA',
+    'SAREGAMA': 'NIFTY MEDIA',
+    'BHARTIARTL': 'NIFTY IND DIGITAL',
+    'INDIAMART': 'NIFTY IND DIGITAL',
+    'IRCTC': 'NIFTY IND DIGITAL',
+    'NAUKRI': 'NIFTY IND DIGITAL',
+    'NYKAA': 'NIFTY IND DIGITAL',
+    'SWIGGY': 'NIFTY IND DIGITAL',
+    'ETERNAL': 'NIFTY IND DIGITAL',
+    'JUBLFOOD': 'NIFTY IND TOURISM',
+    'DEVYANI': 'NIFTY IND TOURISM',
+    'INDHOTEL': 'NIFTY IND TOURISM',
+    'INDIGO': 'NIFTY IND TOURISM',
+    'DBREALTY': 'NIFTY IND TOURISM',
+    'SAPPHIRE': 'NIFTY IND TOURISM',
+    'TBOTEK': 'NIFTY IND TOURISM',
+    'EIHOTEL': 'NIFTY IND TOURISM',
+    'LEMONTREE': 'NIFTY IND TOURISM',
+    'GMRAIRPORT': 'NIFTY IND TOURISM',
+    'CHALET': 'NIFTY IND TOURISM',
+    'BLS': 'NIFTY IND TOURISM',
+    'WESTLIFE': 'NIFTY IND TOURISM',
+    'NAM-INDIA': 'NIFTY CAPITAL MKT',
+    '360ONE': 'NIFTY CAPITAL MKT',
+    'ANANDRATHI': 'NIFTY CAPITAL MKT',
+    'NUVAMA': 'NIFTY CAPITAL MKT',
+    'ABSLAMC': 'NIFTY CAPITAL MKT',
+    'UTIAMC': 'NIFTY CAPITAL MKT',
+    'KFINTECH': 'NIFTY CAPITAL MKT',
+    'ATGL': 'NIFTY OIL AND GAS',
+    'UPL': 'NIFTY INDIA MFG',
+    'COROMANDEL': 'NIFTY INDIA MFG',
+    'DEEPAKNTR': 'NIFTY INDIA MFG',
+    'EXIDEIND': 'NIFTY INDIA MFG',
+    'CUMMINSIND': 'NIFTY INDIA MFG',
+    'POLYCAB': 'NIFTY INDIA MFG',
+    'TATACHEM': 'NIFTY INDIA MFG',
+    'ESCORTS': 'NIFTY INDIA MFG',
+    'SRF': 'NIFTY INDIA MFG',
+    'PIIND': 'NIFTY INDIA MFG',
+    'KPRMILL': 'NIFTY INDIA MFG',
+    'KEI': 'NIFTY INDIA MFG',
+    'ASTRAL': 'NIFTY INDIA MFG',
+    'HSCL': 'NIFTY INDIA MFG',
+    'AIAENG': 'NIFTY INDIA MFG',
+    'PIDILITIND': 'NIFTY INDIA MFG',
+    'PAGEIND': 'NIFTY INDIA MFG',
+    'HONAUT': 'NIFTY INDIA MFG',
+    'ABREL': 'NIFTY INDIA MFG',
+    'KAYNES': 'NIFTY INDIA MFG',
+    'SUPREMEIND': 'NIFTY INDIA MFG',
+    'FLUOROCHEM': 'NIFTY INDIA MFG'
+
+}
+
+
+def get_sector(symbol: str) -> str:
+    """
+    Convenience lookup that uses norm_symbol.
+    Returns empty string if not found.
+    """
+    s = norm_symbol(symbol)
+    return STOCK_INDEX_MAPPING.get(s, "")
+
+
+def add_mapping(symbol: str, sector: str) -> None:
+    """
+    Convenience function to extend mapping at runtime.
+    """
+    s = norm_symbol(symbol)
+    if s:
+        STOCK_INDEX_MAPPING[s] = str(sector).strip()
