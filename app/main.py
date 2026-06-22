@@ -26,10 +26,29 @@ from .chartink_client import (
     normalize_symbol,
 )
 from .trade_engine import TradeEngine
-from .custom_strategy import validate_custom_config
+from .custom_strategy import (
+    gvk_trend_required_candles,
+    gmma_gold_cross_required_candles,
+    pure_liquidity_required_candles,
+    resolve_gmma_gold_cross_settings,
+    resolve_gmma_obv_settings,
+    resolve_gvk_trend_settings,
+    resolve_liquidity_sweep_settings,
+    resolve_pure_liquidity_sweep_settings,
+    resolve_settings,
+    timeframe_interval,
+    timeframe_minutes,
+    validate_custom_config,
+    validate_gmma_gold_cross_config,
+    validate_gmma_obv_config,
+    validate_gvk_trend_config,
+    validate_liquidity_sweep_config,
+    validate_pure_liquidity_sweep_config,
+)
 from .websocket_manager import WebSocketManager
 from .stock_sector import STOCK_INDEX_MAPPING
 from .dhan_broker import DHAN_INSTRUMENTS, DhanFeedService
+from .backtest import run_custom_strategy_backtest
 from .auth import AuthService
 from .middleware import AuthMiddleware, get_current_user, SecurityHeadersMiddleware
 from .custom_middleware import SelectiveHostMiddleware
@@ -701,6 +720,9 @@ async def start_dhan_feed(user_id: int) -> None:
             "status": raw.get("status") or raw.get("orderStatus"),
             "tradingsymbol": raw.get("tradingSymbol") or raw.get("symbol"),
             "average_price": raw.get("avgTradedPrice") or raw.get("averagePrice"),
+            "filledQuantity": raw.get("filledQuantity") or raw.get("tradedQuantity") or raw.get("tradedQty"),
+            "remainingQuantity": raw.get("remainingQuantity") or raw.get("pendingQuantity"),
+            "quantity": raw.get("quantity") or raw.get("orderQuantity"),
         }
 
         async def handle() -> None:
@@ -1269,10 +1291,37 @@ async def save_alert_config(payload: Dict[str, Any]) -> Dict[str, Any]:
     # Normalize key consistently
     alert_name = normalize_alert_name(raw_name)
     strategy_mode = str(payload.get("strategy_mode", "CLASSIC") or "CLASSIC").strip().upper()
-    if strategy_mode not in {"CLASSIC", "PRECISION_SNIPER"}:
+    if strategy_mode not in {"CLASSIC", "PRECISION_SNIPER", "GMMA_OBV", "GMMA_GOLD_CROSS", "LIQUIDITY_SWEEP", "PURE_LIQUIDITY_SWEEP", "GVK_TREND"}:
         return {"error": "INVALID_STRATEGY_MODE"}
+    try:
+        order_timeout = float(payload.get("order_confirm_timeout_sec") or payload.get("execution_confirm_timeout_sec") or 1.5)
+        order_retries = int(payload.get("order_pending_retry_count") or payload.get("execution_retry_count") or 1)
+    except Exception:
+        return {"error": "ORDER_EXECUTION_SETTINGS_INVALID"}
+    if not (0.2 <= order_timeout <= 10.0 and 0 <= order_retries <= 5):
+        return {"error": "ORDER_EXECUTION_SETTINGS_INVALID"}
     if strategy_mode == "PRECISION_SNIPER":
         custom_error = validate_custom_config(payload)
+        if custom_error:
+            return {"error": custom_error}
+    if strategy_mode == "GMMA_OBV":
+        custom_error = validate_gmma_obv_config(payload)
+        if custom_error:
+            return {"error": custom_error}
+    if strategy_mode == "GMMA_GOLD_CROSS":
+        custom_error = validate_gmma_gold_cross_config(payload)
+        if custom_error:
+            return {"error": custom_error}
+    if strategy_mode == "LIQUIDITY_SWEEP":
+        custom_error = validate_liquidity_sweep_config(payload)
+        if custom_error:
+            return {"error": custom_error}
+    if strategy_mode == "PURE_LIQUIDITY_SWEEP":
+        custom_error = validate_pure_liquidity_sweep_config(payload)
+        if custom_error:
+            return {"error": custom_error}
+    if strategy_mode == "GVK_TREND":
+        custom_error = validate_gvk_trend_config(payload)
         if custom_error:
             return {"error": custom_error}
 
@@ -1333,6 +1382,180 @@ async def delete_alert_config_api(payload: Dict[str, Any]) -> Dict[str, Any]:
     if not deleted:
         return {"status": "not_found", "deleted": False}
     return {"status": "deleted", "deleted": True}
+
+
+@app.post("/api/backtest")
+async def run_backtest_api(payload: Dict[str, Any]) -> Dict[str, Any]:
+    user_id = int(payload.get("user_id", 1))
+    symbol = normalize_symbol(payload.get("symbol", ""))
+    if not symbol:
+        return {"error": "SYMBOL_REQUIRED"}
+
+    strategy_mode = str(payload.get("strategy_mode", "PRECISION_SNIPER") or "PRECISION_SNIPER").strip().upper()
+    if strategy_mode not in {"PRECISION_SNIPER", "GMMA_OBV", "GMMA_GOLD_CROSS", "LIQUIDITY_SWEEP", "PURE_LIQUIDITY_SWEEP", "GVK_TREND"}:
+        return {"error": "BACKTEST_UNSUPPORTED_STRATEGY"}
+
+    if strategy_mode == "PRECISION_SNIPER":
+        custom_error = validate_custom_config(payload)
+        interval_minutes = timeframe_minutes(payload, 5)
+        interval = timeframe_interval(payload, 5)
+        precision_settings = resolve_settings(payload)
+        required_candles = max(int(precision_settings["ema_trend"]), 50) + 2
+    elif strategy_mode == "GMMA_OBV":
+        custom_error = validate_gmma_obv_config(payload)
+        interval_minutes = timeframe_minutes(payload, 5)
+        interval = timeframe_interval(payload, 5)
+        gmma_settings = resolve_gmma_obv_settings(payload)
+        required_candles = max(
+            60,
+            int(gmma_settings["obv_donchian"]),
+            int(gmma_settings["adx_len"]),
+            int(gmma_settings["atr_len"]),
+        ) + 5
+    elif strategy_mode == "GMMA_GOLD_CROSS":
+        custom_error = validate_gmma_gold_cross_config(payload)
+        interval_minutes = timeframe_minutes(payload, 5)
+        interval = timeframe_interval(payload, 5)
+        _ggc_settings = resolve_gmma_gold_cross_settings(payload)
+        required_candles = gmma_gold_cross_required_candles(payload)
+    elif strategy_mode == "LIQUIDITY_SWEEP":
+        custom_error = validate_liquidity_sweep_config(payload)
+        interval_minutes = timeframe_minutes(payload, 5)
+        interval = timeframe_interval(payload, 5)
+        liq_settings = resolve_liquidity_sweep_settings(payload)
+        required_candles = max(
+            int(liq_settings["swing_len"]) * 2 + int(liq_settings["lookback_bars"]) // 2,
+            int(liq_settings["minor_len"]) * 2 + int(liq_settings["confirm_window"]) + 5,
+            max(int(liq_settings["gk_len"]), int(liq_settings["gk_atr_len"]) + 5) if liq_settings["use_gk_filter"] else 0,
+            int(liq_settings["vol_len"]) + int(liq_settings["atr_len"]) + 5,
+        )
+    elif strategy_mode == "PURE_LIQUIDITY_SWEEP":
+        custom_error = validate_pure_liquidity_sweep_config(payload)
+        interval_minutes = timeframe_minutes(payload, 5)
+        interval = timeframe_interval(payload, 5)
+        _pure_settings = resolve_pure_liquidity_sweep_settings(payload)
+        required_candles = pure_liquidity_required_candles(payload)
+    else:
+        custom_error = validate_gvk_trend_config(payload)
+        interval_minutes = timeframe_minutes(payload, 5)
+        interval = timeframe_interval(payload, 5)
+        _gvk_settings = resolve_gvk_trend_settings(payload)
+        required_candles = gvk_trend_required_candles(payload)
+    if custom_error:
+        return {"error": custom_error}
+    bars_per_day = max(1, int(375 / interval_minutes))
+    required_trading_sessions = int((required_candles + bars_per_day - 1) / bars_per_day)
+    # Backtests must be warm at the first selected candle (e.g. 09:20).
+    # Calendar days need extra room for weekends, market holidays, and Dhan's
+    # day-wise intraday responses, otherwise long indicators only become ready
+    # late in the selected session.
+    required_calendar_days = max(3, required_trading_sessions * 2 + 3)
+    max_warmup_days = max(required_calendar_days, min(90, required_trading_sessions * 4 + 14))
+    requested_warmup = payload.get("warmup_days")
+    if requested_warmup in (None, ""):
+        warmup_days = required_calendar_days
+    else:
+        warmup_days = max(int(requested_warmup or 0), required_calendar_days)
+
+    ist = pytz.timezone("Asia/Kolkata")
+    today = datetime.datetime.now(ist).date()
+    from_raw = str(payload.get("from_date") or today.isoformat())
+    to_raw = str(payload.get("to_date") or today.isoformat())
+    try:
+        from_dt = datetime.datetime.fromisoformat(from_raw)
+        to_dt = datetime.datetime.fromisoformat(to_raw)
+    except ValueError:
+        return {"error": "BACKTEST_DATE_INVALID"}
+    from_has_time = "T" in from_raw or " " in from_raw
+    to_has_time = "T" in to_raw or " " in to_raw
+    if from_dt.tzinfo is None:
+        if not from_has_time:
+            from_dt = from_dt.replace(hour=9, minute=15, second=0, microsecond=0)
+        from_dt = ist.localize(from_dt)
+    else:
+        from_dt = from_dt.astimezone(ist)
+    if to_dt.tzinfo is None:
+        if not to_has_time:
+            to_dt = to_dt.replace(hour=15, minute=30, second=0, microsecond=0)
+        to_dt = ist.localize(to_dt)
+    else:
+        to_dt = to_dt.astimezone(ist)
+    if to_dt <= from_dt:
+        return {"error": "BACKTEST_DATE_RANGE_INVALID"}
+
+    candles = payload.get("candles")
+    broker_fetched = not isinstance(candles, list)
+    if broker_fetched:
+        try:
+            eng = await ensure_engine(user_id)
+            candles = await eng._fetch_backtest_candles(
+                symbol,
+                interval,
+                from_dt,
+                to_dt,
+                warmup_days=warmup_days,
+            )
+        except Exception as e:
+            return {"error": f"BACKTEST_DATA_FAIL:{e}"}
+        def _bt_candle_time(candle: Dict[str, Any]) -> datetime.datetime:
+            raw = candle.get("date") or candle.get("time") or candle.get("timestamp")
+            if isinstance(raw, datetime.datetime):
+                dt = raw
+            elif isinstance(raw, (int, float)):
+                dt = datetime.datetime.fromtimestamp(float(raw), tz=ist)
+            else:
+                text = str(raw or "")
+                try:
+                    dt = datetime.datetime.fromisoformat(text.replace("Z", "+00:00"))
+                except ValueError:
+                    dt = from_dt
+            if dt.tzinfo is None:
+                return ist.localize(dt)
+            return dt.astimezone(ist)
+
+        def _warmup_count(rows: Any) -> int:
+            if not isinstance(rows, list):
+                return 0
+            return len([c for c in rows if isinstance(c, dict) and _bt_candle_time(c) < from_dt])
+
+        # Some brokers, especially Dhan intraday, can return fewer candles than
+        # the requested calendar span suggests. Extend warmup until the first
+        # selected candle is actually indicator-ready, capped to Dhan's common
+        # 90-day chart range guidance.
+        while candles and _warmup_count(candles) < required_candles and warmup_days < max_warmup_days:
+            next_warmup_days = min(max_warmup_days, max(warmup_days + 7, warmup_days * 2))
+            if next_warmup_days <= warmup_days:
+                break
+            warmup_days = next_warmup_days
+            candles = await eng._fetch_backtest_candles(
+                symbol,
+                interval,
+                from_dt,
+                to_dt,
+                warmup_days=warmup_days,
+            )
+    if not candles:
+        return {
+            "error": "BACKTEST_NO_CANDLES_RETURNED",
+            "message": "Broker returned zero candles for this symbol/date range. Check broker connection, symbol mapping, date range, and historical-data availability.",
+            "symbol": symbol,
+            "strategy_mode": strategy_mode,
+            "from": from_dt.isoformat(),
+            "to": to_dt.isoformat(),
+            "interval": interval,
+        }
+
+    result = run_custom_strategy_backtest(
+        candles,
+        strategy_mode,
+        {**payload, "_required_candles": required_candles, "_warmup_days": warmup_days},
+        symbol=symbol,
+        from_dt=from_dt,
+        to_dt=to_dt,
+        qty=int(payload.get("qty", 1) or 1),
+        capital=float(payload.get("capital", 0) or 0),
+    )
+    return {"status": "ok", "result": result}
 
 
 # -----------------------------

@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
 import pandas as pd
@@ -31,8 +31,22 @@ class DhanInstrumentRegistry:
     def __init__(self) -> None:
         self.symbol_to_security: Dict[str, str] = {}
         self.security_to_symbol: Dict[str, str] = {}
+        self._master_frame: Optional[pd.DataFrame] = None
         self._lock = asyncio.Lock()
         self.loaded_at: Optional[datetime] = None
+
+    INDEX_SECURITY_IDS = {
+        "NIFTY": "13",
+        "NIFTY50": "13",
+        "BANKNIFTY": "25",
+        "NIFTYBANK": "25",
+        "NIFTY BANK": "25",
+    }
+
+    INDEX_DISPLAY = {
+        "13": "NIFTY",
+        "25": "BANKNIFTY",
+    }
 
     async def ensure_loaded(self, force: bool = False) -> bool:
         if self.symbol_to_security and not force:
@@ -41,11 +55,7 @@ class DhanInstrumentRegistry:
             if self.symbol_to_security and not force:
                 return True
             try:
-                frame = await asyncio.to_thread(
-                    pd.read_csv,
-                    DHAN_SCRIP_MASTER_URL,
-                    low_memory=False,
-                )
+                frame = await self._load_master_frame(force=force)
                 symbol_map: Dict[str, str] = {}
                 security_map: Dict[str, str] = {}
                 for _, row in frame.iterrows():
@@ -66,6 +76,9 @@ class DhanInstrumentRegistry:
                         security_map[security_id] = symbol
                 if not symbol_map:
                     raise RuntimeError("DHAN_SCRIP_MASTER_EMPTY")
+                for symbol, security_id in self.INDEX_SECURITY_IDS.items():
+                    symbol_map[symbol] = security_id
+                    security_map[security_id] = self.INDEX_DISPLAY.get(security_id, symbol)
                 self.symbol_to_security = symbol_map
                 self.security_to_symbol = security_map
                 self.loaded_at = datetime.now()
@@ -75,12 +88,102 @@ class DhanInstrumentRegistry:
                 log.error("Dhan instrument master load failed: %s", exc)
                 return False
 
+    async def _load_master_frame(self, force: bool = False) -> pd.DataFrame:
+        if self._master_frame is not None and not force:
+            return self._master_frame
+        frame = await asyncio.to_thread(
+            pd.read_csv,
+            DHAN_SCRIP_MASTER_URL,
+            low_memory=False,
+        )
+        self._master_frame = frame
+        return frame
+
     async def security_id(self, symbol: str) -> Optional[str]:
+        normalized = norm_symbol(symbol)
+        if normalized in self.INDEX_SECURITY_IDS:
+            return self.INDEX_SECURITY_IDS.get(normalized)
         await self.ensure_loaded()
-        return self.symbol_to_security.get(norm_symbol(symbol))
+        return self.symbol_to_security.get(normalized)
+
+    def is_index_symbol(self, symbol: str) -> bool:
+        return norm_symbol(symbol) in self.INDEX_SECURITY_IDS
+
+    def index_security_id(self, symbol: str) -> Optional[str]:
+        return self.INDEX_SECURITY_IDS.get(norm_symbol(symbol))
+
+    async def atm_index_option(
+        self,
+        underlying: str,
+        side: str,
+        spot_price: float,
+        today: Optional[date] = None,
+    ) -> Optional[Dict[str, Any]]:
+        normalized = norm_symbol(underlying)
+        if normalized in {"NIFTY50", "NIFTY BANK"}:
+            normalized = "NIFTY" if normalized == "NIFTY50" else "BANKNIFTY"
+        if normalized not in {"NIFTY", "BANKNIFTY"}:
+            return None
+        option_type = "CE" if str(side).upper() == "BUY" else "PE"
+        strike_step = 50 if normalized == "NIFTY" else 100
+        atm_strike = round(float(spot_price) / strike_step) * strike_step
+        frame = await self._load_master_frame()
+        if frame.empty:
+            return None
+        today = today or datetime.now().date()
+
+        rows = frame.copy()
+        for col in ("SEM_TRADING_SYMBOL", "SEM_SEGMENT", "SEM_EXPIRY_DATE"):
+            if col not in rows.columns:
+                return None
+        rows = rows[
+            (rows["SEM_TRADING_SYMBOL"].astype(str).str.contains(normalized, na=False))
+            & (rows["SEM_SEGMENT"].astype(str).str.upper() == "OPTIDX")
+        ].copy()
+        if rows.empty:
+            return None
+
+        rows["_expiry"] = pd.to_datetime(rows["SEM_EXPIRY_DATE"], errors="coerce").dt.date
+        rows = rows[rows["_expiry"].notna() & (rows["_expiry"] >= today)]
+        if rows.empty:
+            return None
+
+        if "SEM_OPTION_TYPE" in rows.columns:
+            rows = rows[rows["SEM_OPTION_TYPE"].astype(str).str.upper().str.endswith(option_type)]
+        else:
+            rows = rows[rows["SEM_TRADING_SYMBOL"].astype(str).str.upper().str.endswith(option_type)]
+        if rows.empty:
+            return None
+
+        strike_col = "SEM_STRIKE_PRICE" if "SEM_STRIKE_PRICE" in rows.columns else ""
+        if strike_col:
+            rows["_strike"] = pd.to_numeric(rows[strike_col], errors="coerce")
+            rows = rows[rows["_strike"].notna()]
+            rows["_strike_distance"] = (rows["_strike"] - atm_strike).abs()
+        else:
+            rows["_strike_distance"] = rows["SEM_TRADING_SYMBOL"].astype(str).str.extract(r"(\d+)(?:CE|PE)$")[0]
+            rows["_strike_distance"] = pd.to_numeric(rows["_strike_distance"], errors="coerce").sub(atm_strike).abs()
+            rows = rows[rows["_strike_distance"].notna()]
+        if rows.empty:
+            return None
+
+        rows = rows.sort_values(["_expiry", "_strike_distance"])
+        row = rows.iloc[0]
+        security_id = _value(row, "SEM_SMST_SECURITY_ID", "SECURITY_ID")
+        trading_symbol = norm_symbol(_value(row, "SEM_TRADING_SYMBOL", "TRADING_SYMBOL"))
+        if not security_id or not trading_symbol:
+            return None
+        return {
+            "security_id": security_id,
+            "trading_symbol": trading_symbol,
+            "underlying": normalized,
+            "option_type": option_type,
+            "strike": float(row.get("_strike", atm_strike) or atm_strike),
+            "expiry": str(row.get("_expiry") or ""),
+        }
 
     def symbol(self, security_id: Any) -> str:
-        return self.security_to_symbol.get(str(security_id), "")
+        return self.security_to_symbol.get(str(security_id), self.INDEX_DISPLAY.get(str(security_id), ""))
 
 
 DHAN_INSTRUMENTS = DhanInstrumentRegistry()
@@ -151,6 +254,37 @@ def normalize_dhan_positions(response: Any) -> Dict[str, Any]:
 
 def normalize_dhan_candles(response: Any, interval_minutes: int) -> List[Dict[str, Any]]:
     data = response_data(response)
+    if isinstance(data, list):
+        rows: List[Dict[str, Any]] = []
+        ist = pytz.timezone("Asia/Kolkata")
+        now = datetime.now(ist)
+        for row in data:
+            if not isinstance(row, dict):
+                continue
+            raw_stamp = row.get("timestamp") or row.get("start_Time") or row.get("date") or row.get("time")
+            if raw_stamp is None:
+                continue
+            if isinstance(raw_stamp, (int, float)):
+                stamp = datetime.fromtimestamp(float(raw_stamp), tz=ist)
+            else:
+                stamp = datetime.fromisoformat(str(raw_stamp).replace("Z", "+00:00"))
+                if stamp.tzinfo is None:
+                    stamp = ist.localize(stamp)
+                else:
+                    stamp = stamp.astimezone(ist)
+            if stamp + timedelta(minutes=interval_minutes) > now:
+                continue
+            rows.append(
+                {
+                    "date": stamp,
+                    "open": float(row.get("open") or row.get("Open") or 0.0),
+                    "high": float(row.get("high") or row.get("High") or 0.0),
+                    "low": float(row.get("low") or row.get("Low") or 0.0),
+                    "close": float(row.get("close") or row.get("Close") or 0.0),
+                    "volume": float(row.get("volume") or row.get("Volume") or 0.0),
+                }
+            )
+        return rows
     if not isinstance(data, dict):
         return []
     opens = data.get("open") or []
@@ -186,6 +320,43 @@ def normalize_dhan_candles(response: Any, interval_minutes: int) -> List[Dict[st
             }
         )
     return rows
+
+
+def resample_intraday_candles(candles: List[Dict[str, Any]], interval_minutes: int) -> List[Dict[str, Any]]:
+    """Aggregate 1-minute/session candles into custom intraday bars."""
+    interval = max(1, int(interval_minutes))
+    if interval <= 1:
+        return list(candles)
+    ist = pytz.timezone("Asia/Kolkata")
+    buckets: Dict[tuple, Dict[str, Any]] = {}
+    for candle in sorted(candles, key=lambda item: item.get("date") or datetime.min):
+        stamp = candle.get("date")
+        if not isinstance(stamp, datetime):
+            continue
+        stamp = stamp.astimezone(ist) if stamp.tzinfo else ist.localize(stamp)
+        session_start = stamp.replace(hour=9, minute=15, second=0, microsecond=0)
+        minutes_from_open = int((stamp - session_start).total_seconds() // 60)
+        if minutes_from_open < 0:
+            continue
+        bucket_offset = (minutes_from_open // interval) * interval
+        bucket_time = session_start + timedelta(minutes=bucket_offset)
+        key = (bucket_time.date().isoformat(), bucket_time.strftime("%H:%M"))
+        current = buckets.get(key)
+        if not current:
+            buckets[key] = {
+                "date": bucket_time,
+                "open": float(candle.get("open") or 0.0),
+                "high": float(candle.get("high") or 0.0),
+                "low": float(candle.get("low") or 0.0),
+                "close": float(candle.get("close") or 0.0),
+                "volume": float(candle.get("volume") or 0.0),
+            }
+            continue
+        current["high"] = max(float(current["high"]), float(candle.get("high") or 0.0))
+        current["low"] = min(float(current["low"]), float(candle.get("low") or 0.0))
+        current["close"] = float(candle.get("close") or 0.0)
+        current["volume"] = float(current.get("volume") or 0.0) + float(candle.get("volume") or 0.0)
+    return sorted(buckets.values(), key=lambda item: item.get("date") or datetime.min)
 
 
 @dataclass

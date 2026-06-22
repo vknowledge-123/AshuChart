@@ -21,13 +21,31 @@ from .stock_sector import STOCK_INDEX_MAPPING
 import os 
 import re
 from datetime import timedelta
-from .custom_strategy import evaluate_precision_sniper, resolve_settings
+from .custom_strategy import (
+    evaluate_gmma_gold_cross_strategy,
+    evaluate_gmma_obv_strategy,
+    evaluate_gvk_trend_strategy,
+    evaluate_liquidity_sweep_strategy,
+    evaluate_pure_liquidity_sweep_strategy,
+    evaluate_precision_sniper,
+    gmma_gold_cross_required_candles,
+    gvk_trend_required_candles,
+    pure_liquidity_required_candles,
+    resolve_gmma_gold_cross_settings,
+    resolve_gmma_obv_settings,
+    resolve_gvk_trend_settings,
+    resolve_liquidity_sweep_settings,
+    resolve_pure_liquidity_sweep_settings,
+    resolve_settings,
+    timeframe_interval,
+)
 from .dhan_broker import (
     DHAN_INSTRUMENTS,
     dhan_client,
     normalize_dhan_candles,
     normalize_dhan_positions,
     order_id_from_response,
+    resample_intraday_candles,
     response_data,
 )
 
@@ -154,6 +172,53 @@ def _partial_quantities(total_qty: int, tp1_pct: float, tp2_pct: float) -> Tuple
     return tp1, tp2, total - tp1 - tp2
 
 
+def _normalize_order_status(value: Any) -> str:
+    status = str(value or "").strip().upper().replace(" ", "_")
+    if status in {"TRADED", "FILLED", "COMPLETE", "COMPLETED", "EXECUTED"}:
+        return "COMPLETE"
+    if status in {"OPEN", "PENDING", "TRANSIT", "VALIDATION_PENDING", "PUT_ORDER_REQ_RECEIVED"}:
+        return "PENDING"
+    if status in {"CANCELLED", "CANCELED"}:
+        return "CANCELLED"
+    if status in {"REJECTED", "FAILED"}:
+        return "REJECTED"
+    return status
+
+
+def _order_field(data: Dict[str, Any], *names: str) -> Any:
+    for name in names:
+        if name in data and data.get(name) not in (None, ""):
+            return data.get(name)
+    return None
+
+
+def _normalize_order_snapshot(data: Any) -> Dict[str, Any]:
+    raw = response_data(data)
+    if isinstance(raw, list):
+        raw = raw[0] if raw else {}
+    if not isinstance(raw, dict):
+        raw = {}
+    nested = raw.get("Data") if isinstance(raw.get("Data"), dict) else raw.get("data")
+    if isinstance(nested, dict):
+        raw = nested
+    order_id = _order_field(raw, "order_id", "orderId", "orderNo", "orderIdStr")
+    status = _normalize_order_status(_order_field(raw, "status", "orderStatus", "order_status"))
+    traded_qty = int(float(_order_field(raw, "filledQuantity", "tradedQuantity", "tradedQty", "filled_qty", "filled_quantity") or 0))
+    qty = int(float(_order_field(raw, "quantity", "orderQuantity", "qty") or 0))
+    remaining = _order_field(raw, "remainingQuantity", "remaining_qty", "pendingQuantity")
+    remaining_qty = int(float(remaining if remaining not in (None, "") else max(0, qty - traded_qty)))
+    avg_price = float(_order_field(raw, "average_price", "averagePrice", "avgTradedPrice", "tradedPrice", "price") or 0.0)
+    return {
+        "order_id": str(order_id or ""),
+        "status": status,
+        "tradingsymbol": norm_symbol(str(_order_field(raw, "tradingsymbol", "tradingSymbol", "symbol") or "")),
+        "average_price": avg_price,
+        "filled_quantity": traded_qty,
+        "remaining_quantity": remaining_qty,
+        "raw": raw,
+    }
+
+
 def _stepwise_anchor_long(entry: float, highest: float, step_pct: float) -> float:
     """
     Quantize the trailing anchor in steps of `step_pct` moves from entry.
@@ -257,7 +322,7 @@ class AlertConfig:
     # entry time window (IST format HH:MM)
     entry_start_time: str = "09:15"
     entry_end_time: str = "15:15"
-    strategy_mode: Literal["CLASSIC", "PRECISION_SNIPER"] = "CLASSIC"
+    strategy_mode: Literal["CLASSIC", "PRECISION_SNIPER", "GMMA_OBV", "GMMA_GOLD_CROSS", "LIQUIDITY_SWEEP", "PURE_LIQUIDITY_SWEEP", "GVK_TREND"] = "CLASSIC"
     custom_settings: Dict[str, Any] = None  # type: ignore[assignment]
 
     @staticmethod
@@ -279,7 +344,7 @@ class AlertConfig:
             qty_mode = "CAPITAL"
 
         strategy_mode = str(d.get("strategy_mode", "CLASSIC") or "CLASSIC").strip().upper()
-        if strategy_mode not in ("CLASSIC", "PRECISION_SNIPER"):
+        if strategy_mode not in ("CLASSIC", "PRECISION_SNIPER", "GMMA_OBV", "GMMA_GOLD_CROSS", "LIQUIDITY_SWEEP", "PURE_LIQUIDITY_SWEEP", "GVK_TREND"):
             strategy_mode = "CLASSIC"
 
         return AlertConfig(
@@ -326,9 +391,16 @@ class Position:
     highest: float = 0.0
     lowest: float = 0.0
 
-    status: Literal["OPEN", "EXIT_CONDITIONS_MET", "EXITING", "CLOSED", "REJECTED", "ERROR"] = "OPEN"
+    status: Literal["PENDING_ENTRY", "OPEN", "EXIT_CONDITIONS_MET", "EXITING", "CLOSED", "REJECTED", "ERROR"] = "OPEN"
     exit_reason: str = ""
     exit_order_id: str = ""
+    pending_reason: str = ""
+    entry_filled_qty: int = 0
+    entry_remaining_qty: int = 0
+    exit_filled_qty: int = 0
+    exit_remaining_qty: int = 0
+    order_status: str = ""
+    order_retry_count: int = 0
     alert_time: str = ""
     created_ts: float = 0.0
     updated_ts: float = 0.0
@@ -377,6 +449,20 @@ class Position:
 
     def to_public(self) -> Dict[str, Any]:
         return asdict(self)
+
+
+@dataclass
+class OrderExecution:
+    order_id: str
+    symbol: str
+    side: Side
+    qty: int
+    status: str
+    avg_price: float = 0.0
+    filled_qty: int = 0
+    remaining_qty: int = 0
+    attempts: int = 1
+    ltp: float = 0.0
 
 
 # =========================
@@ -490,6 +576,8 @@ class TradeEngine:
         self._exit_signal_sent: Dict[str, bool] = {}
         # entry reconciliation (avoid repeated REST calls)
         self._recon_inflight: Dict[str, bool] = {}
+        self._order_updates_by_id: Dict[str, Dict[str, Any]] = {}
+        self._order_events: Dict[str, asyncio.Event] = {}
         # monitoring log controls
         self._mon_last_log: Dict[str, float] = {}
         self.monitor_log_interval_sec: float = 10.0   # per symbol
@@ -504,6 +592,9 @@ class TradeEngine:
         # Kill-switch / panic coordination (avoid concurrent triggers)
         self._kill_trigger_lock = asyncio.Lock()
         self._custom_last_signal: Dict[Tuple[str, str], str] = {}
+        self._custom_reversal_last_check: Dict[str, float] = {}
+        self._custom_reversal_last_candle: Dict[str, str] = {}
+        self.custom_reversal_check_interval_sec: float = 20.0
         self._partial_inflight: Dict[Tuple[str, str], bool] = {}
 
         # MTM-based daily P&L guard
@@ -689,19 +780,63 @@ class TradeEngine:
             if not await self._ensure_dhan_ready() or not self.dhan:
                 raise RuntimeError("DHAN_NOT_CONNECTED")
             security_id = await DHAN_INSTRUMENTS.security_id(symbol)
+            exchange_segment = self.dhan.NSE
+            order_symbol = norm_symbol(symbol)
+            if DHAN_INSTRUMENTS.is_index_symbol(symbol):
+                spot_price = await self._fetch_ltp(symbol)
+                contract = await DHAN_INSTRUMENTS.atm_index_option(symbol, side, spot_price)
+                if not contract:
+                    raise RuntimeError("DHAN_ATM_OPTION_NOT_FOUND")
+                security_id = str(contract["security_id"])
+                exchange_segment = getattr(self.dhan, "FNO", "NSE_FNO")
+                order_symbol = str(contract["trading_symbol"])
+                side = "BUY"
+                option_ltp = 0.0
+                try:
+                    quote = await self.market_data_worker.submit(
+                        self.dhan.ohlc_data,
+                        {exchange_segment: [int(security_id)]},
+                    )
+                    data = response_data(quote)
+                    stack = [data]
+                    while stack:
+                        value = stack.pop()
+                        if isinstance(value, dict):
+                            found_ltp = False
+                            for key in ("last_price", "lastPrice", "ltp", "LTP"):
+                                if key in value and float(value[key] or 0) > 0:
+                                    option_ltp = float(value[key])
+                                    found_ltp = True
+                                    break
+                            if found_ltp:
+                                break
+                            stack.extend(value.values())
+                        elif isinstance(value, list):
+                            stack.extend(value)
+                except Exception:
+                    option_ltp = 0.0
             if not security_id:
                 raise RuntimeError("DHAN_SECURITY_ID_MISSING")
             response = await self.order_worker.submit(
                 self.dhan.place_order,
                 security_id=str(security_id),
-                exchange_segment=self.dhan.NSE,
+                exchange_segment=exchange_segment,
                 transaction_type=self.dhan.BUY if side == "BUY" else self.dhan.SELL,
                 quantity=int(qty),
                 order_type=self.dhan.MARKET,
                 product_type=self.dhan.CNC if product == "CNC" else self.dhan.INTRA,
                 price=0,
             )
-            return order_id_from_response(response)
+            order_id = order_id_from_response(response)
+            if order_symbol != norm_symbol(symbol):
+                return {
+                    "order_id": order_id,
+                    "symbol": order_symbol,
+                    "security_id": str(security_id),
+                    "side": side,
+                    "ltp": option_ltp,
+                }
+            return order_id
 
         ok = await self._ensure_kite_ready()
         if not ok or not self.kite:
@@ -716,6 +851,180 @@ class TradeEngine:
             product=str(product),
             order_type="MARKET",
             market_protection=-1
+        )
+
+    def _order_confirm_settings(self, cfg: Optional[Dict[str, Any]] = None) -> Tuple[float, int]:
+        cfg = cfg or {}
+        try:
+            timeout = float(cfg.get("order_confirm_timeout_sec") or cfg.get("execution_confirm_timeout_sec") or 1.5)
+        except Exception:
+            timeout = 1.5
+        try:
+            retries = int(cfg.get("order_pending_retry_count") or cfg.get("execution_retry_count") or 1)
+        except Exception:
+            retries = 1
+        return max(0.2, min(timeout, 10.0)), max(0, min(retries, 5))
+
+    async def _fetch_order_snapshot(self, order_id: str) -> Dict[str, Any]:
+        order_id = str(order_id or "").strip()
+        if not order_id:
+            return {}
+        if self.broker == "DHAN":
+            if not await self._ensure_dhan_ready() or not self.dhan:
+                return {}
+            fn = getattr(self.dhan, "get_order_by_id", None)
+            if not callable(fn):
+                return {}
+            try:
+                return _normalize_order_snapshot(await self.market_data_worker.submit(fn, order_id))
+            except Exception as e:
+                log.debug("ORDER_STATUS_FETCH_FAIL | user=%s broker=DHAN order_id=%s err=%s", self.user_id, order_id, e)
+                return {}
+        if self.kite:
+            fn = getattr(self.kite, "order_history", None)
+            if callable(fn):
+                try:
+                    rows = await self.market_data_worker.submit(fn, order_id)
+                    if isinstance(rows, list) and rows:
+                        return _normalize_order_snapshot(rows[-1])
+                except Exception as e:
+                    log.debug("ORDER_STATUS_FETCH_FAIL | user=%s broker=ZERODHA order_id=%s err=%s", self.user_id, order_id, e)
+        return {}
+
+    async def _cancel_order_if_pending(self, order_id: str) -> bool:
+        order_id = str(order_id or "").strip()
+        if not order_id:
+            return False
+        try:
+            if self.broker == "DHAN":
+                if not await self._ensure_dhan_ready() or not self.dhan:
+                    return False
+                fn = getattr(self.dhan, "cancel_order", None)
+                if not callable(fn):
+                    return False
+                await self.order_worker.submit(fn, order_id)
+                return True
+            ok = await self._ensure_kite_ready()
+            if ok and self.kite:
+                await self.order_worker.submit(self.kite.cancel_order, variety="regular", order_id=order_id)
+                return True
+        except Exception as e:
+            log.warning("ORDER_CANCEL_FAIL | user=%s broker=%s order_id=%s err=%s", self.user_id, self.broker, order_id, e)
+        return False
+
+    async def _wait_for_order_execution(self, order_id: str, timeout_sec: float) -> Dict[str, Any]:
+        order_id = str(order_id or "").strip()
+        deadline = time.monotonic() + float(timeout_sec)
+        event = self._order_events.setdefault(order_id, asyncio.Event())
+        last: Dict[str, Any] = dict(self._order_updates_by_id.get(order_id) or {})
+        while True:
+            cached = self._order_updates_by_id.get(order_id)
+            if cached:
+                last = dict(cached)
+                if cached.get("status") in {"COMPLETE", "REJECTED", "CANCELLED"}:
+                    return last
+
+            polled = await self._fetch_order_snapshot(order_id)
+            if polled:
+                last = dict(polled)
+                self._order_updates_by_id[order_id] = last
+                if polled.get("status") in {"COMPLETE", "REJECTED", "CANCELLED"}:
+                    return last
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return last or {"order_id": order_id, "status": "UNKNOWN"}
+            event.clear()
+            try:
+                await asyncio.wait_for(event.wait(), timeout=min(0.25, remaining))
+            except asyncio.TimeoutError:
+                pass
+
+    async def _place_order_with_execution(
+        self,
+        symbol: str,
+        side: Side,
+        qty: int,
+        product: Product,
+        cfg: Optional[Dict[str, Any]] = None,
+    ) -> OrderExecution:
+        timeout_sec, pending_retries = self._order_confirm_settings(cfg)
+        needs_confirm = self.broker == "DHAN" or _as_bool((cfg or {}).get("confirm_order_execution"), False)
+        attempts = 0
+        last_snapshot: Dict[str, Any] = {}
+        last_order_id = ""
+
+        while attempts <= pending_retries:
+            attempts += 1
+            placed = await self._place_order(symbol, side, qty, product)
+            exec_symbol = norm_symbol(symbol)
+            exec_side: Side = side
+            exec_ltp = 0.0
+            if isinstance(placed, dict):
+                exec_symbol = norm_symbol(str(placed.get("symbol") or symbol))
+                exec_side = "BUY" if str(placed.get("side") or side).upper() == "BUY" else "SELL"
+                exec_ltp = float(placed.get("ltp") or 0.0)
+                order_id = str(placed.get("order_id") or "")
+            else:
+                order_id = str(placed or "")
+            last_order_id = order_id
+
+            if not needs_confirm:
+                return OrderExecution(
+                    order_id=order_id,
+                    symbol=exec_symbol,
+                    side=exec_side,
+                    qty=int(qty),
+                    status="COMPLETE",
+                    filled_qty=int(qty),
+                    remaining_qty=0,
+                    attempts=attempts,
+                    ltp=exec_ltp,
+                )
+
+            snapshot = await self._wait_for_order_execution(order_id, timeout_sec)
+            last_snapshot = snapshot
+            status = str(snapshot.get("status") or "").upper()
+            filled_qty = int(snapshot.get("filled_quantity") or 0)
+            remaining_qty = int(snapshot.get("remaining_quantity") or max(0, int(qty) - filled_qty))
+            avg_price = float(snapshot.get("average_price") or 0.0)
+            if status == "COMPLETE" or filled_qty >= int(qty):
+                return OrderExecution(
+                    order_id=order_id,
+                    symbol=exec_symbol or norm_symbol(str(snapshot.get("tradingsymbol") or symbol)),
+                    side=exec_side,
+                    qty=max(filled_qty, int(qty)),
+                    status="COMPLETE",
+                    avg_price=avg_price,
+                    filled_qty=max(filled_qty, int(qty)),
+                    remaining_qty=0,
+                    attempts=attempts,
+                    ltp=exec_ltp,
+                )
+            if status in {"REJECTED", "CANCELLED"}:
+                raise RuntimeError(f"ORDER_{status}:{order_id}")
+
+            cancelled = await self._cancel_order_if_pending(order_id)
+            log.warning(
+                "ORDER_PENDING_RETRY | user=%s broker=%s symbol=%s side=%s qty=%s order_id=%s status=%s filled=%s remaining=%s cancelled=%s attempt=%s/%s",
+                self.user_id,
+                self.broker,
+                symbol,
+                side,
+                qty,
+                order_id,
+                status or "UNKNOWN",
+                filled_qty,
+                remaining_qty,
+                cancelled,
+                attempts,
+                pending_retries + 1,
+            )
+
+        raise RuntimeError(
+            "ORDER_NOT_EXECUTED:"
+            f"{last_order_id}:status={last_snapshot.get('status') or 'UNKNOWN'}:"
+            f"filled={last_snapshot.get('filled_quantity') or 0}:remaining={last_snapshot.get('remaining_quantity') or qty}"
         )
 
     async def _fetch_positions_avg(self, symbol: str) -> float:
@@ -747,9 +1056,10 @@ class TradeEngine:
                     try:
                         security_id = await DHAN_INSTRUMENTS.security_id(symbol)
                         if security_id:
+                            segment = getattr(self.dhan, "INDEX", "IDX_I") if DHAN_INSTRUMENTS.is_index_symbol(symbol) else self.dhan.NSE
                             response = await self.market_data_worker.submit(
                                 self.dhan.ohlc_data,
-                                {"NSE_EQ": [int(security_id)]},
+                                {segment: [int(security_id)]},
                             )
                             data = response_data(response)
                             stack = [data]
@@ -798,19 +1108,18 @@ class TradeEngine:
                 pass
             ist = pytz.timezone("Asia/Kolkata")
             now = datetime.now(ist)
-            start_day = now - timedelta(days=min(5, max(1, int(lookback_days))))
+            start_day = now - timedelta(days=min(90, max(1, int(lookback_days))))
             start = start_day.replace(hour=9, minute=15, second=0, microsecond=0)
-            response = await self.market_data_worker.submit(
-                self.dhan.intraday_minute_data,
-                security_id=str(security_id),
-                exchange_segment=self.dhan.NSE,
-                instrument_type="EQUITY",
-                from_date=start.strftime("%Y-%m-%d %H:%M:%S"),
-                to_date=now.strftime("%Y-%m-%d %H:%M:%S"),
-                interval=interval_minutes,
-                oi=False,
+            exchange_segment = getattr(self.dhan, "INDEX", "IDX_I") if DHAN_INSTRUMENTS.is_index_symbol(symbol) else self.dhan.NSE
+            instrument_type = "INDEX" if DHAN_INSTRUMENTS.is_index_symbol(symbol) else "EQUITY"
+            return await self._fetch_dhan_intraday_candles(
+                str(security_id),
+                interval_minutes,
+                start,
+                now,
+                exchange_segment=exchange_segment,
+                instrument_type=instrument_type,
             )
-            return normalize_dhan_candles(response, interval_minutes)
 
         ok = await self._ensure_kite_ready()
         if not ok or not self.kite:
@@ -858,6 +1167,183 @@ class TradeEngine:
                     continue
             closed.append(dict(row))
         return closed
+
+    async def _fetch_backtest_candles(
+        self,
+        symbol: str,
+        interval: str,
+        from_dt: datetime,
+        to_dt: datetime,
+        warmup_days: int = 7,
+    ) -> List[Dict[str, Any]]:
+        ist = pytz.timezone("Asia/Kolkata")
+        selected_start = from_dt.astimezone(ist) if from_dt.tzinfo else ist.localize(from_dt)
+        selected_end = to_dt.astimezone(ist) if to_dt.tzinfo else ist.localize(to_dt)
+        start = (selected_start - timedelta(days=max(1, int(warmup_days)))).replace(hour=9, minute=15, second=0, microsecond=0)
+        end = selected_end.replace(hour=15, minute=30, second=0, microsecond=0)
+        selected_start = selected_start.replace(second=0, microsecond=0)
+
+        if self.broker == "DHAN":
+            if not await self._ensure_dhan_ready() or not self.dhan:
+                raise RuntimeError("DHAN_NOT_CONNECTED")
+            security_id = await DHAN_INSTRUMENTS.security_id(symbol)
+            if not security_id:
+                raise RuntimeError("DHAN_SECURITY_ID_MISSING")
+            exchange_segment = getattr(self.dhan, "INDEX", "IDX_I") if DHAN_INSTRUMENTS.is_index_symbol(symbol) else self.dhan.NSE
+            instrument_type = "INDEX" if DHAN_INSTRUMENTS.is_index_symbol(symbol) else "EQUITY"
+            interval_minutes = 5
+            try:
+                interval_minutes = int(str(interval).replace("minute", ""))
+            except Exception:
+                pass
+            selected_rows = await self._fetch_dhan_intraday_candles(
+                str(security_id),
+                interval_minutes,
+                selected_start,
+                end,
+                exchange_segment=exchange_segment,
+                instrument_type=instrument_type,
+            )
+            if not selected_rows:
+                log.warning(
+                    "DHAN_BACKTEST_SELECTED_RANGE_EMPTY | symbol=%s security_id=%s selected=%s..%s",
+                    symbol,
+                    security_id,
+                    selected_start.isoformat(),
+                    end.isoformat(),
+                )
+                return []
+
+            warmup_rows: List[Dict[str, Any]] = []
+            warmup_end = selected_start - timedelta(seconds=1)
+            if start <= warmup_end:
+                warmup_rows = await self._fetch_dhan_intraday_candles(
+                    str(security_id),
+                    interval_minutes,
+                    start,
+                    warmup_end,
+                    exchange_segment=exchange_segment,
+                    instrument_type=instrument_type,
+                )
+            merged: Dict[str, Dict[str, Any]] = {}
+            for candle in warmup_rows + selected_rows:
+                stamp = candle.get("date")
+                key = stamp.isoformat() if isinstance(stamp, datetime) else str(stamp)
+                if key:
+                    merged[key] = dict(candle)
+            return sorted(merged.values(), key=lambda candle: candle.get("date") or datetime.min)
+
+        ok = await self._ensure_kite_ready()
+        if not ok or not self.kite:
+            raise RuntimeError("ZERODHA_NOT_CONNECTED")
+        token = None
+        if self.token_resolver:
+            token = self.token_resolver(norm_symbol(symbol))
+        if not token and self.token_ready_cb:
+            await self.token_ready_cb(self.user_id)
+            if self.token_resolver:
+                token = self.token_resolver(norm_symbol(symbol))
+        if not token:
+            try:
+                token = await self.store.get_symbol_token(symbol)
+            except Exception:
+                token = None
+        if not token:
+            raise RuntimeError("INSTRUMENT_TOKEN_MISSING")
+
+        rows = await self.market_data_worker.submit(
+            self.kite.historical_data,
+            instrument_token=int(token),
+            from_date=start,
+            to_date=end,
+            interval=interval,
+            continuous=False,
+            oi=False,
+        )
+        return [dict(row) for row in rows or []]
+
+    async def _fetch_dhan_intraday_candles(
+        self,
+        security_id: str,
+        interval_minutes: int,
+        start: datetime,
+        end: datetime,
+        exchange_segment: Optional[str] = None,
+        instrument_type: str = "EQUITY",
+    ) -> List[Dict[str, Any]]:
+        if not self.dhan:
+            raise RuntimeError("DHAN_NOT_CONNECTED")
+        ist = pytz.timezone("Asia/Kolkata")
+        start_ist = start.astimezone(ist) if start.tzinfo else ist.localize(start)
+        end_ist = end.astimezone(ist) if end.tzinfo else ist.localize(end)
+        requested_interval = max(1, int(interval_minutes))
+        if requested_interval in {1, 5}:
+            dhan_interval = requested_interval
+        elif requested_interval > 5 and requested_interval % 5 == 0:
+            # Dhan's direct higher-timeframe intraday responses can under-fill
+            # warmup history. Fetch stable 5m data and aggregate locally so
+            # 15m/25m/30m/60m strategies all see consistent candles.
+            dhan_interval = 5
+        else:
+            dhan_interval = 1
+        exchange_segment = exchange_segment or self.dhan.NSE
+        rows: List[Dict[str, Any]] = []
+        seen: Set[str] = set()
+        day = start_ist.date()
+        while day <= end_ist.date():
+            day_start = ist.localize(datetime.combine(day, datetime.min.time())).replace(
+                hour=9,
+                minute=15,
+                second=0,
+                microsecond=0,
+            )
+            day_end = ist.localize(datetime.combine(day, datetime.min.time())).replace(
+                hour=15,
+                minute=30,
+                second=0,
+                microsecond=0,
+            )
+            from_bound = max(start_ist, day_start)
+            to_bound = min(end_ist, day_end)
+            if from_bound <= to_bound:
+                response = await self.market_data_worker.submit(
+                    self.dhan.intraday_minute_data,
+                    security_id=str(security_id),
+                    exchange_segment=exchange_segment,
+                    instrument_type=instrument_type,
+                    from_date=from_bound.strftime("%Y-%m-%d %H:%M:%S"),
+                    to_date=to_bound.strftime("%Y-%m-%d %H:%M:%S"),
+                    interval=int(dhan_interval),
+                    oi=False,
+                )
+                normalized = normalize_dhan_candles(response, dhan_interval)
+                accepted_for_day = 0
+                for candle in normalized:
+                    stamp = candle.get("date")
+                    if isinstance(stamp, datetime):
+                        stamp_ist = stamp.astimezone(ist) if stamp.tzinfo else ist.localize(stamp)
+                        if not (from_bound <= stamp_ist <= to_bound):
+                            continue
+                        stamp = stamp_ist
+                        candle = {**candle, "date": stamp_ist}
+                    key = stamp.isoformat() if isinstance(stamp, datetime) else str(stamp)
+                    if key and key not in seen:
+                        seen.add(key)
+                        rows.append(candle)
+                        accepted_for_day += 1
+                if normalized and accepted_for_day == 0:
+                    log.debug(
+                        "DHAN_INTRADAY_OUT_OF_RANGE | security_id=%s requested=%s..%s returned=%s",
+                        security_id,
+                        from_bound.isoformat(),
+                        to_bound.isoformat(),
+                        len(normalized),
+                    )
+            day = day + timedelta(days=1)
+        rows.sort(key=lambda candle: candle.get("date") or datetime.min)
+        if dhan_interval != requested_interval:
+            rows = resample_intraday_candles(rows, requested_interval)
+        return rows
 
     async def on_chartink_alert(self, alert_name: str, symbols: List[str], ts: str = "") -> List[Dict[str, Any]]:
         alert_key = normalize_alert_key(alert_name)
@@ -912,23 +1398,81 @@ class TradeEngine:
                         results.append({"symbol": sym, "status": "SKIPPED", "reason": "SECTOR_FILTER"})
                         continue
 
-                if cfg.strategy_mode == "PRECISION_SNIPER":
+                if cfg.strategy_mode in ("PRECISION_SNIPER", "GMMA_OBV", "GMMA_GOLD_CROSS", "LIQUIDITY_SWEEP", "PURE_LIQUIDITY_SWEEP", "GVK_TREND"):
                     try:
-                        candles = await self._fetch_historical_candles(sym, "5minute", 15)
-                        custom_settings = resolve_settings(cfg.custom_settings or {})
-                        htf_minutes = int(custom_settings.get("htf_minutes", 5) or 5)
-                        htf_candles = candles
-                        if htf_minutes > 5:
-                            htf_candles = await self._fetch_historical_candles(
-                                sym,
-                                f"{htf_minutes}minute",
-                                30,
+                        if cfg.strategy_mode == "PRECISION_SNIPER":
+                            custom_settings = resolve_settings(cfg.custom_settings or {})
+                            interval = timeframe_interval(cfg.custom_settings or {}, 5)
+                            candles = await self._fetch_historical_candles(sym, interval, 15)
+                            htf_minutes = int(custom_settings.get("htf_minutes", 5) or 5)
+                            htf_candles = candles
+                            if htf_minutes > 5:
+                                htf_candles = await self._fetch_historical_candles(
+                                    sym,
+                                    f"{htf_minutes}minute",
+                                    30,
+                                )
+                            custom_signal, custom_meta = evaluate_precision_sniper(
+                                candles,
+                                cfg.custom_settings or {},
+                                htf_candles,
                             )
-                        custom_signal, custom_meta = evaluate_precision_sniper(
-                            candles,
-                            cfg.custom_settings or {},
-                            htf_candles,
-                        )
+                        else:
+                            if cfg.strategy_mode == "GMMA_OBV":
+                                custom_settings = resolve_gmma_obv_settings(cfg.custom_settings or {})
+                                custom_signal_fn = evaluate_gmma_obv_strategy
+                                tf_minutes = int(custom_settings.get("timeframe_minutes") or 5)
+                                bars_per_day = max(1, int(375 / max(1, tf_minutes)))
+                                required = max(
+                                    60,
+                                    int(custom_settings["obv_donchian"]),
+                                    int(custom_settings["adx_len"]),
+                                    int(custom_settings["atr_len"]),
+                                ) + 5
+                                sessions = int((required + bars_per_day - 1) / bars_per_day)
+                                lookback_days = max(7, min(90, sessions * 4 + 14))
+                            elif cfg.strategy_mode == "GMMA_GOLD_CROSS":
+                                custom_settings = resolve_gmma_gold_cross_settings(cfg.custom_settings or {})
+                                custom_signal_fn = evaluate_gmma_gold_cross_strategy
+                                tf_minutes = int(custom_settings.get("timeframe_minutes") or 5)
+                                bars_per_day = max(1, int(375 / max(1, tf_minutes)))
+                                required = gmma_gold_cross_required_candles(cfg.custom_settings or {})
+                                sessions = int((required + bars_per_day - 1) / bars_per_day)
+                                lookback_days = max(7, min(90, sessions * 4 + 14))
+                            elif cfg.strategy_mode == "LIQUIDITY_SWEEP":
+                                custom_settings = resolve_liquidity_sweep_settings(cfg.custom_settings or {})
+                                custom_signal_fn = evaluate_liquidity_sweep_strategy
+                                tf_minutes = int(custom_settings.get("timeframe_minutes") or 5)
+                                bars_per_day = max(1, int(375 / max(1, tf_minutes)))
+                                required = max(
+                                    int(custom_settings["swing_len"]) * 2 + int(custom_settings["lookback_bars"]) // 2,
+                                    int(custom_settings["minor_len"]) * 2 + int(custom_settings["confirm_window"]) + 5,
+                                    max(int(custom_settings["gk_len"]), int(custom_settings["gk_atr_len"]) + 5)
+                                    if custom_settings["use_gk_filter"]
+                                    else 0,
+                                    int(custom_settings["vol_len"]) + int(custom_settings["atr_len"]) + 5,
+                                )
+                                sessions = int((required + bars_per_day - 1) / bars_per_day)
+                                lookback_days = max(15, min(90, sessions * 4 + 14))
+                            elif cfg.strategy_mode == "PURE_LIQUIDITY_SWEEP":
+                                custom_settings = resolve_pure_liquidity_sweep_settings(cfg.custom_settings or {})
+                                custom_signal_fn = evaluate_pure_liquidity_sweep_strategy
+                                tf_minutes = int(custom_settings.get("timeframe_minutes") or 5)
+                                bars_per_day = max(1, int(375 / max(1, tf_minutes)))
+                                required = pure_liquidity_required_candles(cfg.custom_settings or {})
+                                sessions = int((required + bars_per_day - 1) / bars_per_day)
+                                lookback_days = max(15, min(90, sessions * 4 + 14))
+                            else:
+                                custom_settings = resolve_gvk_trend_settings(cfg.custom_settings or {})
+                                custom_signal_fn = evaluate_gvk_trend_strategy
+                                tf_minutes = int(custom_settings.get("timeframe_minutes") or 5)
+                                bars_per_day = max(1, int(375 / max(1, tf_minutes)))
+                                required = gvk_trend_required_candles(cfg.custom_settings or {})
+                                sessions = int((required + bars_per_day - 1) / bars_per_day)
+                                lookback_days = max(15, min(90, sessions * 4 + 14))
+                            interval = str(custom_settings.get("timeframe") or "5minute")
+                            candles = await self._fetch_historical_candles(sym, interval, lookback_days)
+                            custom_signal, custom_meta = custom_signal_fn(candles, cfg.custom_settings or {})
                     except Exception as e:
                         results.append({"symbol": sym, "status": "ERROR", "reason": f"CUSTOM_DATA_FAIL:{e}"})
                         continue
@@ -993,31 +1537,39 @@ class TradeEngine:
                 else:
                     side = "BUY" if cfg.direction == "LONG" else "SELL"
 
-                # place order
+                # Place order and confirm actual execution before marking a
+                # strategy position OPEN. Dhan can convert MARKET to a
+                # protection LIMIT order; pending orders are cancelled/retried
+                # by _place_order_with_execution.
                 try:
-                    oid = await self._place_order(sym, side, qty, cfg.product)
+                    execution = await self._place_order_with_execution(sym, side, qty, cfg.product, cfg.custom_settings)
                 except Exception as e:
                     results.append({"symbol": sym, "status": "ERROR", "reason": f"ORDER_FAIL:{e}"})
                     continue
+                execution_symbol = execution.symbol or sym
+                execution_side = execution.side
+                execution_ltp = float(execution.avg_price or execution.ltp or ltp or 0.0)
+                oid = execution.order_id
 
-                entry = float(ltp or 0.0)
+                entry = execution_ltp
                 target_price = 0.0
                 sl_price = 0.0
-                if custom_signal:
+                is_index_option_execution = execution_symbol != sym and DHAN_INSTRUMENTS.is_index_symbol(sym)
+                if custom_signal and not is_index_option_execution:
                     target_price = float(custom_signal.tp3)
                     sl_price = float(custom_signal.stop_loss)
                 elif entry > 0 and cfg.target_pct > 0:
-                    if side == "BUY":
+                    if execution_side == "BUY":
                         target_price = entry * (1.0 + float(cfg.target_pct) / 100.0)
                     else:
                         target_price = entry * (1.0 - float(cfg.target_pct) / 100.0)
-                if not custom_signal and entry > 0 and cfg.stop_loss_pct > 0:
-                    if side == "BUY":
+                if (not custom_signal or is_index_option_execution) and entry > 0 and cfg.stop_loss_pct > 0:
+                    if execution_side == "BUY":
                         sl_price = entry * (1.0 - float(cfg.stop_loss_pct) / 100.0)
                     else:
                         sl_price = entry * (1.0 + float(cfg.stop_loss_pct) / 100.0)
 
-                partial_enabled = bool(custom_signal and custom_settings.get("partial_profit_enabled", False))
+                partial_enabled = bool(custom_signal and not is_index_option_execution and custom_settings.get("partial_profit_enabled", False))
                 partial_qty = _partial_quantities(
                     qty,
                     float(custom_settings.get("partial_tp1_pct", 50.0)),
@@ -1027,17 +1579,21 @@ class TradeEngine:
                 pos = Position(
                     trade_id=uuid.uuid4().hex[:12],
                     user_id=self.user_id,
-                    symbol=sym,
+                    symbol=execution_symbol,
                     alert_name=alert_key,
-                    side=side,
+                    side=execution_side,
                     product=cfg.product,
                     qty=qty,
                     initial_qty=qty,
                     entry_price=entry,
                     entry_order_id=str(oid),
+                    entry_filled_qty=int(execution.filled_qty or qty),
+                    entry_remaining_qty=int(execution.remaining_qty or 0),
+                    order_status=str(execution.status or "COMPLETE"),
+                    order_retry_count=max(0, int(execution.attempts) - 1),
                     target_price=target_price,
                     sl_price=sl_price,
-                    tsl_pct=0.0 if custom_signal else float(cfg.trailing_sl_pct),
+                    tsl_pct=float(cfg.trailing_sl_pct) if is_index_option_execution else (0.0 if custom_signal else float(cfg.trailing_sl_pct)),
                     tsl_stepwise=bool(cfg.tsl_stepwise),
                     highest=entry if side == "BUY" else 0.0,
                     lowest=entry if side == "SELL" else 0.0,
@@ -1047,7 +1603,7 @@ class TradeEngine:
                     updated_ts=time.time(),
                     cfg_target_pct=float(cfg.target_pct),
                     cfg_sl_pct=float(cfg.stop_loss_pct),
-                    cfg_tsl_pct=0.0 if custom_signal else float(cfg.trailing_sl_pct),
+                    cfg_tsl_pct=float(cfg.trailing_sl_pct) if is_index_option_execution else (0.0 if custom_signal else float(cfg.trailing_sl_pct)),
                     cfg_tsl_stepwise=bool(cfg.tsl_stepwise),
                     ltp=entry,
                     pnl=0.0,
@@ -1060,12 +1616,12 @@ class TradeEngine:
                     signal_preset=str(custom_signal.preset) if custom_signal else "",
                     signal_volatility=str(custom_signal.volatility) if custom_signal else "",
                     signal_candle_time=str(custom_signal.candle_time) if custom_signal else "",
-                    tp1_price=float(custom_signal.tp1) if custom_signal else 0.0,
-                    tp2_price=float(custom_signal.tp2) if custom_signal else 0.0,
-                    tp3_price=float(custom_signal.tp3) if custom_signal else 0.0,
-                    trail_price=float(custom_signal.trail_price) if custom_signal else 0.0,
-                    custom_use_trail=bool(custom_settings.get("use_trail", True)) if custom_signal else True,
-                    custom_full_exit_tp3=bool(custom_settings.get("full_exit_tp3", True)) if custom_signal else True,
+                    tp1_price=float(custom_signal.tp1) if custom_signal and not is_index_option_execution else target_price,
+                    tp2_price=float(custom_signal.tp2) if custom_signal and not is_index_option_execution else target_price,
+                    tp3_price=float(custom_signal.tp3) if custom_signal and not is_index_option_execution else target_price,
+                    trail_price=float(custom_signal.trail_price) if custom_signal and not is_index_option_execution else sl_price,
+                    custom_use_trail=bool(custom_settings.get("use_trail", True)) if custom_signal and not is_index_option_execution else True,
+                    custom_full_exit_tp3=bool(custom_settings.get("full_exit_tp3", True)) if custom_signal and not is_index_option_execution else True,
                     custom_partial_profit_enabled=partial_enabled,
                     partial_tp1_pct=float(custom_settings.get("partial_tp1_pct", 50.0)),
                     partial_tp2_pct=float(custom_settings.get("partial_tp2_pct", 25.0)),
@@ -1075,12 +1631,12 @@ class TradeEngine:
                     tp3_exit_qty=partial_qty[2] if partial_enabled else 0,
                 )
 
-                self.positions[sym] = pos
+                self.positions[execution_symbol] = pos
                 if custom_signal:
                     self._custom_last_signal[(alert_key, sym)] = custom_signal.candle_time
                 try:
-                    await self.store.upsert_position(self.user_id, sym, pos.to_public())
-                    await self.store.mark_open(self.user_id, sym, pos.trade_id)
+                    await self.store.upsert_position(self.user_id, execution_symbol, pos.to_public())
+                    await self.store.mark_open(self.user_id, execution_symbol, pos.trade_id)
                 except Exception:
                     pass
 
@@ -1097,10 +1653,14 @@ class TradeEngine:
                 results.append(
                     {
                         "symbol": sym,
+                        "execution_symbol": execution_symbol,
                         "status": "ENTERED",
-                        "reason": "ORDER_OK",
+                        "reason": "ORDER_EXECUTED",
                         "side": side,
                         "qty": qty,
+                        "order_id": str(oid),
+                        "order_status": str(execution.status or "COMPLETE"),
+                        "order_retries": max(0, int(execution.attempts) - 1),
                         "ltp": entry,
                         "pct": pct,
                         "entry": entry,
@@ -1122,38 +1682,63 @@ class TradeEngine:
 
     async def on_order_update(self, data: Dict[str, Any]) -> None:
         """
-        Handle Kite order update callbacks.
+        Handle broker order update callbacks.
         Keep it safe: update in-memory/redis positions if relevant.
         """
         try:
-            order_id = str(data.get("order_id") or "")
-            status = str(data.get("status") or "").upper()
-            symbol = norm_symbol(str(data.get("tradingsymbol") or ""))
-            if not symbol:
-                return
+            snapshot = _normalize_order_snapshot(data)
+            order_id = str(snapshot.get("order_id") or data.get("order_id") or "")
+            status = str(snapshot.get("status") or "").upper()
+            symbol = norm_symbol(str(snapshot.get("tradingsymbol") or data.get("tradingsymbol") or ""))
+            if order_id:
+                self._order_updates_by_id[order_id] = snapshot
+                event = self._order_events.get(order_id)
+                if event:
+                    event.set()
 
-            pos = self.positions.get(symbol)
+            pos = self.positions.get(symbol) if symbol else None
+            if not pos and order_id:
+                for candidate in self.positions.values():
+                    if order_id in {
+                        str(candidate.entry_order_id or ""),
+                        str(candidate.exit_order_id or ""),
+                        str(candidate.tp1_exit_order_id or ""),
+                        str(candidate.tp2_exit_order_id or ""),
+                        str(candidate.tp3_exit_order_id or ""),
+                    }:
+                        pos = candidate
+                        symbol = candidate.symbol
+                        break
             if not pos:
                 return
 
             # Entry order updates
             if order_id and pos.entry_order_id and order_id == pos.entry_order_id:
-                if status in ("COMPLETE", "FILLED"):
-                    avg = float(data.get("average_price") or data.get("price") or 0.0)
+                pos.order_status = status
+                pos.entry_filled_qty = int(snapshot.get("filled_quantity") or pos.entry_filled_qty or 0)
+                pos.entry_remaining_qty = int(snapshot.get("remaining_quantity") or pos.entry_remaining_qty or 0)
+                if status == "COMPLETE":
+                    avg = float(snapshot.get("average_price") or 0.0)
                     if avg > 0:
                         pos.entry_price = avg
+                    pos.status = "OPEN"
+                    pos.pending_reason = ""
                     pos.updated_ts = time.time()
                     await self.store.upsert_position(self.user_id, symbol, pos.to_public())
                 elif status in ("REJECTED", "CANCELLED"):
                     pos.status = "ERROR"
                     pos.exit_reason = f"ENTRY_{status}"
+                    pos.pending_reason = ""
                     pos.updated_ts = time.time()
                     await self.store.upsert_position(self.user_id, symbol, pos.to_public())
                 return
 
             # Exit order updates
             if order_id and pos.exit_order_id and order_id == pos.exit_order_id:
-                if status in ("COMPLETE", "FILLED"):
+                pos.order_status = status
+                pos.exit_filled_qty = int(snapshot.get("filled_quantity") or pos.exit_filled_qty or 0)
+                pos.exit_remaining_qty = int(snapshot.get("remaining_quantity") or pos.exit_remaining_qty or 0)
+                if status == "COMPLETE":
                     pos.status = "CLOSED"
                     pos.updated_ts = time.time()
                     await self.store.upsert_position(self.user_id, symbol, pos.to_public())
@@ -1203,9 +1788,20 @@ class TradeEngine:
                 return True
 
             exit_side: Side = "SELL" if pos.side == "BUY" else "BUY"
-            oid = await self._place_order(symbol, exit_side, exit_qty, pos.product)
+            execution = await self._place_order_with_execution(
+                symbol,
+                exit_side,
+                exit_qty,
+                pos.product,
+                {
+                    "order_confirm_timeout_sec": 1.5,
+                    "order_pending_retry_count": 1,
+                },
+            )
+            oid = execution.order_id
             setattr(pos, booked_field, True)
             setattr(pos, order_field, str(oid))
+            pos.order_status = execution.status
             booked_pnl = (
                 (float(pos.ltp) - float(pos.entry_price)) * exit_qty
                 if pos.side == "BUY"
@@ -1297,6 +1893,49 @@ class TradeEngine:
         except Exception as e:
             log.exception("🔥 CRITICAL_TICK_ERROR | user=%s symbol=%s err=%s", self.user_id, symbol, e)
             return None
+
+    async def _maybe_custom_reversal_exit(self, pos: Position) -> Optional[str]:
+        if pos.strategy_mode != "GVK_TREND":
+            return None
+        now = time.time()
+        last_check = float(self._custom_reversal_last_check.get(pos.symbol, 0.0) or 0.0)
+        if now - last_check < float(self.custom_reversal_check_interval_sec):
+            return None
+        self._custom_reversal_last_check[pos.symbol] = now
+
+        try:
+            cfg = await self.store.get_alert_config(self.user_id, pos.alert_name)
+        except Exception:
+            cfg = None
+        cfg = dict(cfg or {})
+        settings = resolve_gvk_trend_settings(cfg)
+        if not bool(settings.get("exit_on_reversal", True)):
+            return None
+
+        tf_minutes = int(settings.get("timeframe_minutes") or 5)
+        bars_per_day = max(1, int(375 / max(1, tf_minutes)))
+        required = gvk_trend_required_candles(cfg)
+        sessions = int((required + bars_per_day - 1) / bars_per_day)
+        lookback_days = max(15, min(90, sessions * 4 + 14))
+        candles = await self._fetch_historical_candles(pos.symbol, str(settings.get("timeframe") or "5minute"), lookback_days)
+        signal, meta = evaluate_gvk_trend_strategy(candles, cfg)
+        candle_time = str((signal.candle_time if signal else meta.get("candle_time")) or "")
+        if candle_time and self._custom_reversal_last_candle.get(pos.symbol) == candle_time:
+            return None
+        if candle_time:
+            self._custom_reversal_last_candle[pos.symbol] = candle_time
+        if signal and signal.side and signal.side != pos.side and str(signal.candle_time or "") != str(pos.signal_candle_time or ""):
+            log.info(
+                "CUSTOM_REVERSAL_EXIT | user=%s symbol=%s side=%s reversal_side=%s candle=%s preset=%s",
+                self.user_id,
+                pos.symbol,
+                pos.side,
+                signal.side,
+                signal.candle_time,
+                signal.preset,
+            )
+            return "CUSTOM_STRATEGY_REVERSAL"
+        return None
 
     async def _on_tick_unsafe(
         self,
@@ -1433,7 +2072,7 @@ class TradeEngine:
 
             asyncio.create_task(_recon(), name=f"recon_{symbol}")
 
-        if pos.strategy_mode == "PRECISION_SNIPER":
+        if pos.strategy_mode in ("PRECISION_SNIPER", "GMMA_OBV", "GMMA_GOLD_CROSS", "LIQUIDITY_SWEEP", "PURE_LIQUIDITY_SWEEP", "GVK_TREND"):
             reason: Optional[str] = None
             previous_trail = float(pos.trail_price or pos.sl_price or 0.0)
 
@@ -1492,6 +2131,9 @@ class TradeEngine:
                             pos.trail_price = pos.tp2_price
                         if pos.custom_full_exit_tp3:
                             reason = "CUSTOM_TP3"
+
+            if not reason:
+                reason = await self._maybe_custom_reversal_exit(pos)
 
             if reason:
                 if not self._exit_signal_sent.get(symbol):
@@ -1857,7 +2499,17 @@ class TradeEngine:
 
         # Place exit order on Zerodha
         try:
-            oid = await self._place_order(symbol, exit_side, qty, product)
+            execution = await self._place_order_with_execution(
+                symbol,
+                exit_side,
+                qty,
+                product,
+                {
+                    "order_confirm_timeout_sec": 1.5,
+                    "order_pending_retry_count": 1,
+                },
+            )
+            oid = execution.order_id
             log.info(
                 "✅ MANUAL_EXIT_ZERODHA_OK | user=%s symbol=%s exit_oid=%s side=%s qty=%s product=%s",
                 self.user_id, symbol, str(oid), exit_side, qty, product
@@ -1930,8 +2582,21 @@ class TradeEngine:
                 )
 
                 try:
-                    oid = await self._place_order(symbol, exit_side, int(pos.qty), pos.product)
+                    execution = await self._place_order_with_execution(
+                        symbol,
+                        exit_side,
+                        int(pos.qty),
+                        pos.product,
+                        {
+                            "order_confirm_timeout_sec": 1.5,
+                            "order_pending_retry_count": 1,
+                        },
+                    )
+                    oid = execution.order_id
                     pos.exit_order_id = str(oid)
+                    pos.exit_filled_qty = int(execution.filled_qty or pos.qty)
+                    pos.exit_remaining_qty = int(execution.remaining_qty or 0)
+                    pos.order_status = str(execution.status or "COMPLETE")
                     pos.status = "CLOSED"
                     pos.updated_ts = time.time()
 

@@ -1048,6 +1048,237 @@
         </div>
       </div>
     </section>
+
+    <!-- Backtesting -->
+    <section class="animate-enter glass rounded-2xl border border-white/10 p-4">
+      <div class="flex flex-col lg:flex-row lg:items-end gap-3 justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-200 font-serif">Custom Strategy Backtest</h2>
+          <p class="text-xs text-slate-400 mt-1">Search any NSE stock symbol. The engine fetches warmup candles, evaluates closed candles, enters on the next candle open, and reports trade P&amp;L.</p>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-7 gap-2 w-full lg:w-auto">
+          <div>
+            <label class="block text-[10px] text-slate-400 uppercase mb-1">Saved Strategy</label>
+            <select id="bt_config" class="input-field" onchange="applyBacktestConfig()">
+              <option value="">Manual Defaults</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] text-cyan-300 uppercase mb-1">Symbol</label>
+            <input id="bt_symbol" class="input-field" placeholder="SBIN">
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-400 uppercase mb-1">Strategy</label>
+            <select id="bt_strategy" class="input-field" onchange="toggleBacktestStrategyPanels()">
+              <option value="PRECISION_SNIPER">Precision Sniper</option>
+              <option value="GMMA_OBV">GMMA OBV</option>
+              <option value="GMMA_GOLD_CROSS">GMMA Gold Cross</option>
+              <option value="LIQUIDITY_SWEEP">Liquidity Sweep</option>
+              <option value="PURE_LIQUIDITY_SWEEP">Pure Liquidity Sweep</option>
+              <option value="GVK_TREND">GVK Trend</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-400 uppercase mb-1">Timeframe</label>
+            <select id="bt_timeframe" class="input-field">
+              <option value="1">1m</option>
+              <option value="3">3m</option>
+              <option value="5" selected>5m</option>
+              <option value="15">15m</option>
+              <option value="30">30m</option>
+              <option value="60">1h</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-400 uppercase mb-1">From</label>
+            <input id="bt_from" type="date" class="input-field">
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-400 uppercase mb-1">To</label>
+            <input id="bt_to" type="date" class="input-field">
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-400 uppercase mb-1">Qty</label>
+            <input id="bt_qty" type="number" class="input-field" value="1">
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 mb-4">
+        <button onclick="runBacktest()" class="btn px-4 py-2 rounded-lg bg-gradient-to-r from-violet-500 to-cyan-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/20">
+          Run Backtest
+        </button>
+        <span id="bt_status" class="text-xs text-slate-400">Ready.</span>
+      </div>
+      <div id="bt_ggc_panel" class="hidden rounded-xl bg-fuchsia-500/5 border border-fuchsia-500/20 p-3 mb-4">
+        <div class="mb-3">
+          <h3 class="text-xs font-bold text-fuchsia-300 uppercase tracking-wider">GMMA Gold Cross Backtest Settings</h3>
+          <p class="text-[10px] text-slate-500 mt-1">GMMA v5 golden/death cross highlights plus OBV Traffic Light confirmation. Defaults use the attached GMMA lengths.</p>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+          <div><label class="block text-[10px] text-fuchsia-300 uppercase mb-1">Entry Mode</label><select id="bt_ggc_entry_mode" class="input-field"><option>Golden Cross Only</option><option>Regime Mode</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">OBV Confirm</label><select id="bt_ggc_require_obv" class="input-field"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Allow Shorts</label><select id="bt_ggc_allow_shorts" class="input-field"><option value="true" selected>Yes</option><option value="false">Long Only</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">OBV Fast</label><input id="bt_ggc_obv_fast" type="number" class="input-field" value="5"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">OBV Medium</label><input id="bt_ggc_obv_medium" type="number" class="input-field" value="9"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">OBV Slow</label><input id="bt_ggc_obv_slow" type="number" class="input-field" value="14"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Donchian Base</label><input id="bt_ggc_obv_donchian" type="number" class="input-field" value="26"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">OBV Smooth</label><input id="bt_ggc_obv_smoothing" type="number" class="input-field" value="1"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">ATR Len</label><input id="bt_ggc_atr_len" type="number" class="input-field" value="14"></div>
+          <div><label class="block text-[10px] text-rose-300 uppercase mb-1">SL ATR Mult</label><input id="bt_ggc_sl_mult" type="number" step="0.1" class="input-field" value="1.2"></div>
+          <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP1 R:R</label><input id="bt_ggc_tp1" type="number" step="0.1" class="input-field" value="1"></div>
+          <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP2 R:R</label><input id="bt_ggc_tp2" type="number" step="0.1" class="input-field" value="2"></div>
+          <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP3 R:R</label><input id="bt_ggc_tp3" type="number" step="0.1" class="input-field" value="3"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Trail / BE</label><select id="bt_ggc_trail" class="input-field"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Full Exit TP3</label><select id="bt_ggc_exit_tp3" class="input-field"><option value="true" selected>Yes</option><option value="false">Keep Runner</option></select></div>
+        </div>
+      </div>
+      <div id="bt_liq_panel" class="hidden rounded-xl bg-amber-500/5 border border-amber-500/20 p-3 mb-4">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+          <div>
+            <h3 class="text-xs font-bold text-amber-300 uppercase tracking-wider">Liquidity Sweep Backtest Settings</h3>
+            <p class="text-[10px] text-slate-500 mt-1">Tune sweep, CHoCH, volume, GK ribbon, S/R and target logic for this backtest run.</p>
+          </div>
+          <button type="button" onclick="setBacktestLiquidityBalanced()" class="btn px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-400/30 text-amber-200 text-[10px] font-bold uppercase">
+            Balanced 50% Preset
+          </button>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+          <div><label class="block text-[10px] text-amber-300 uppercase mb-1">GK Length</label><input id="bt_liq_gk_len" type="number" class="input-field" value="100"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">GK Mult</label><input id="bt_liq_gk_mult" type="number" step="0.1" class="input-field" value="1.8"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">GK ATR Len</label><input id="bt_liq_gk_atr_len" type="number" class="input-field" value="14"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">GK Confirm</label><input id="bt_liq_gk_confirm" type="number" class="input-field" value="1"></div>
+          <div><label class="block text-[10px] text-amber-300 uppercase mb-1">Sweep Swing</label><input id="bt_liq_swing" type="number" class="input-field" value="13"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Lookback Bars</label><input id="bt_liq_lookback" type="number" class="input-field" value="50"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Minor Len</label><input id="bt_liq_minor" type="number" class="input-field" value="5"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Confirm Window</label><input id="bt_liq_confirm" type="number" class="input-field" value="8"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Require CHoCH</label><select id="bt_liq_choch" class="input-field"><option value="true" selected>Yes</option><option value="false">No</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Volume Filter</label><select id="bt_liq_use_volume" class="input-field"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Vol Len</label><input id="bt_liq_vol_len" type="number" class="input-field" value="14"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Vol Spike xMA</label><input id="bt_liq_vol_mult" type="number" step="0.1" class="input-field" value="1.2"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">GK Filter</label><select id="bt_liq_gk_on" class="input-field"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">HTF Bias</label><select id="bt_liq_htf_on" class="input-field"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">HTF EMA</label><input id="bt_liq_htf_ema" type="number" class="input-field" value="34"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">S/R Filter</label><select id="bt_liq_sr_on" class="input-field"><option value="false" selected>Off</option><option value="true">On</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">S/R Pivot</label><input id="bt_liq_sr_pivot" type="number" class="input-field" value="5"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">S/R Min ATR</label><input id="bt_liq_sr_min" type="number" step="0.05" class="input-field" value="0.15"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">S/R Near ATR</label><input id="bt_liq_sr_near" type="number" step="0.1" class="input-field" value="1"></div>
+          <div><label class="block text-[10px] text-cyan-300 uppercase mb-1">Min Score</label><input id="bt_liq_min_score" type="number" class="input-field" value="40"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">ATR Len</label><input id="bt_liq_atr_len" type="number" class="input-field" value="14"></div>
+          <div><label class="block text-[10px] text-rose-300 uppercase mb-1">SL Buffer ATR</label><input id="bt_liq_sl_buffer" type="number" step="0.05" class="input-field" value="0.25"></div>
+          <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP1 R:R</label><input id="bt_liq_tp1" type="number" step="0.1" class="input-field" value="1"></div>
+          <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP2 R:R</label><input id="bt_liq_tp2" type="number" step="0.1" class="input-field" value="2"></div>
+          <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP3 R:R</label><input id="bt_liq_tp3" type="number" step="0.1" class="input-field" value="3"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Trail</label><select id="bt_liq_trail" class="input-field"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Full Exit TP3</label><select id="bt_liq_exit_tp3" class="input-field"><option value="true" selected>Yes</option><option value="false">Keep Runner</option></select></div>
+        </div>
+      </div>
+      <div id="bt_pliq_panel" class="hidden rounded-xl bg-emerald-500/5 border border-emerald-500/20 p-3 mb-4">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+          <div>
+            <h3 class="text-xs font-bold text-emerald-300 uppercase tracking-wider">Pure Liquidity Sweep Backtest Settings</h3>
+            <p class="text-[10px] text-slate-500 mt-1">Mirage/Lux style pure sweep engine: wick sweeps, optional outbreak/retest, CHoCH, score, volume and HTF bias.</p>
+          </div>
+          <button type="button" onclick="setBacktestPureLiquidityBalanced()" class="btn px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-400/30 text-emerald-200 text-[10px] font-bold uppercase">
+            Balanced Pure Preset
+          </button>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+          <div><label class="block text-[10px] text-emerald-300 uppercase mb-1">Swing Length</label><input id="bt_pliq_swing" type="number" class="input-field" value="21"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Max Sweep Bars</label><input id="bt_pliq_lookback" type="number" class="input-field" value="80"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Sweep Mode</label><select id="bt_pliq_mode" class="input-field"><option>Wicks + Outbreaks & Retest</option><option>Only Wicks</option><option>Only Outbreaks & Retest</option></select></div>
+          <div><label class="block text-[10px] text-cyan-300 uppercase mb-1">Min Score</label><input id="bt_pliq_min_score" type="number" class="input-field" value="50"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Require CHoCH</label><select id="bt_pliq_choch" class="input-field"><option value="true" selected>Yes</option><option value="false">No</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Minor Pivot</label><input id="bt_pliq_minor" type="number" class="input-field" value="8"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Confirm Window</label><input id="bt_pliq_confirm" type="number" class="input-field" value="13"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Volume Filter</label><select id="bt_pliq_use_volume" class="input-field"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Vol Len</label><input id="bt_pliq_vol_len" type="number" class="input-field" value="21"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Vol Spike xMA</label><input id="bt_pliq_vol_mult" type="number" step="0.1" class="input-field" value="1.5"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">HTF Bias</label><select id="bt_pliq_htf_on" class="input-field"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">HTF EMA</label><input id="bt_pliq_htf_ema" type="number" class="input-field" value="50"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Risk Preset</label><select id="bt_pliq_risk_preset" class="input-field"><option>Balanced</option><option>Conservative</option><option>Aggressive</option><option>Scalping</option><option>Custom</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">ATR Len</label><input id="bt_pliq_atr_len" type="number" class="input-field" value="14"></div>
+          <div><label class="block text-[10px] text-rose-300 uppercase mb-1">SL Buffer ATR</label><input id="bt_pliq_sl_buffer" type="number" step="0.05" class="input-field" value="0.25"></div>
+          <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP1 R:R</label><input id="bt_pliq_tp1" type="number" step="0.1" class="input-field" value="1"></div>
+          <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP2 R:R</label><input id="bt_pliq_tp2" type="number" step="0.1" class="input-field" value="2"></div>
+          <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP3 R:R</label><input id="bt_pliq_tp3" type="number" step="0.1" class="input-field" value="3"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Trail / BE</label><select id="bt_pliq_trail" class="input-field"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Full Exit TP3</label><select id="bt_pliq_exit_tp3" class="input-field"><option value="true" selected>Yes</option><option value="false">Keep Runner</option></select></div>
+        </div>
+      </div>
+      <div id="bt_gvk_panel" class="hidden rounded-xl bg-sky-500/5 border border-sky-500/20 p-3 mb-4">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+          <div>
+            <h3 class="text-xs font-bold text-sky-300 uppercase tracking-wider">GVK Trend Backtest Settings</h3>
+            <p class="text-[10px] text-slate-500 mt-1">GK/GVK trend ribbon: zero-lag EMA centerline, ATR bands, confirmed flip entries and optional trend-mode entries.</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+          <div><label class="block text-[10px] text-sky-300 uppercase mb-1">Ribbon Length</label><input id="bt_gvk_len" type="number" class="input-field" value="200"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Band Mult</label><input id="bt_gvk_mult" type="number" step="0.1" class="input-field" value="2"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Band ATR Len</label><input id="bt_gvk_gk_atr_len" type="number" class="input-field" value="21"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Confirm Bars</label><input id="bt_gvk_confirm" type="number" min="1" max="3" class="input-field" value="2"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Entry Mode</label><select id="bt_gvk_entry_mode" class="input-field"><option>Trend Flip Only</option><option>Trend Mode</option></select></div>
+          <div><label class="block text-[10px] text-cyan-300 uppercase mb-1">Min Score</label><input id="bt_gvk_min_score" type="number" step="0.5" class="input-field" value="4"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Risk ATR Len</label><input id="bt_gvk_atr_len" type="number" class="input-field" value="14"></div>
+          <div><label class="block text-[10px] text-rose-300 uppercase mb-1">SL ATR Mult</label><input id="bt_gvk_sl_mult" type="number" step="0.1" class="input-field" value="1.2"></div>
+          <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP1 R:R</label><input id="bt_gvk_tp1" type="number" step="0.1" class="input-field" value="1"></div>
+          <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP2 R:R</label><input id="bt_gvk_tp2" type="number" step="0.1" class="input-field" value="2"></div>
+          <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP3 R:R</label><input id="bt_gvk_tp3" type="number" step="0.1" class="input-field" value="3"></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Trail / BE</label><select id="bt_gvk_trail" class="input-field"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Full Exit TP3</label><select id="bt_gvk_exit_tp3" class="input-field"><option value="true" selected>Yes</option><option value="false">Keep Runner</option></select></div>
+          <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Exit Reversal</label><select id="bt_gvk_exit_reversal" class="input-field"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+        </div>
+      </div>
+      <div id="bt_summary" class="grid grid-cols-2 md:grid-cols-6 gap-2 mb-4"></div>
+      <div id="bt_params" class="hidden rounded-xl bg-slate-900/60 border border-white/10 p-3 mb-4 text-xs text-slate-300"></div>
+      <div class="overflow-x-auto rounded-xl border border-white/10">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="text-[10px] uppercase tracking-[0.15em] text-slate-400 border-b border-white/10">
+              <th class="px-3 py-3 text-left">Entry Time</th>
+              <th class="px-3 py-3 text-left">Side</th>
+              <th class="px-3 py-3 text-right">Qty</th>
+              <th class="px-3 py-3 text-right">Entry</th>
+              <th class="px-3 py-3 text-right">Exit</th>
+              <th class="px-3 py-3 text-left">Reason</th>
+              <th class="px-3 py-3 text-right">P&amp;L</th>
+              <th class="px-3 py-3 text-right">Grade</th>
+            </tr>
+          </thead>
+          <tbody id="bt_body">
+            <tr><td colspan="8" class="px-3 py-6 text-center text-slate-500 italic">Run a backtest to see trades.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mt-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-sm font-bold text-slate-200">Candle Detail Report</h3>
+          <span id="bt_detail_count" class="text-[10px] text-slate-500">0 rows</span>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-white/10 max-h-[520px]">
+          <table class="w-full text-[11px]">
+            <thead class="sticky top-0 bg-slate-950 z-10">
+              <tr class="text-[9px] uppercase tracking-[0.15em] text-slate-400 border-b border-white/10">
+                <th class="px-3 py-3 text-left">Candle</th>
+                <th class="px-3 py-3 text-right">O</th>
+                <th class="px-3 py-3 text-right">H</th>
+                <th class="px-3 py-3 text-right">L</th>
+                <th class="px-3 py-3 text-right">C</th>
+                <th class="px-3 py-3 text-right">Vol</th>
+                <th class="px-3 py-3 text-left">Status</th>
+                <th class="px-3 py-3 text-left">Fail / Reason</th>
+                <th class="px-3 py-3 text-left">Checks</th>
+                <th class="px-3 py-3 text-left">Indicators</th>
+                <th class="px-3 py-3 text-left">Action</th>
+              </tr>
+            </thead>
+            <tbody id="bt_detail_body">
+              <tr><td colspan="11" class="px-3 py-6 text-center text-slate-500 italic">Run a backtest to see every candle decision.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- ================= MODALS ================= -->
@@ -1233,9 +1464,25 @@
             <label class="block text-xs font-semibold text-cyan-400 uppercase mb-1.5">Strategy Engine</label>
             <select id="cfg_strategy_mode" class="input-field" onchange="toggleStrategyMode()">
               <option value="CLASSIC">Classic (existing percentage rules)</option>
-              <option value="PRECISION_SNIPER">Precision Sniper (5-minute confirmation)</option>
+              <option value="PRECISION_SNIPER">Precision Sniper</option>
+              <option value="GMMA_OBV">GMMA + OBV + VWAP + ADX</option>
+              <option value="GMMA_GOLD_CROSS">GMMA Gold Cross + OBV</option>
+              <option value="LIQUIDITY_SWEEP">Liquidity Sweep + GK + S/R</option>
+              <option value="PURE_LIQUIDITY_SWEEP">Pure Liquidity Sweep</option>
+              <option value="GVK_TREND">GVK Trend Ribbon</option>
             </select>
-            <p class="text-[10px] text-slate-500 mt-1">Chartink supplies candidate stocks. Precision Sniper confirms entries using closed 5-minute candles from the selected broker.</p>
+            <p class="text-[10px] text-slate-500 mt-1">Chartink supplies candidate stocks. Custom engines confirm entries using closed broker candles before placing orders.</p>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-cyan-400 uppercase mb-1.5">Strategy Timeframe</label>
+            <select id="cfg_timeframe" class="input-field">
+              <option value="1">1 minute</option>
+              <option value="3">3 minutes</option>
+              <option value="5" selected>5 minutes</option>
+              <option value="15">15 minutes</option>
+              <option value="30">30 minutes</option>
+              <option value="60">1 hour</option>
+            </select>
           </div>
 
           <div>
@@ -1272,6 +1519,24 @@
             </div>
           </div>
 
+          <div class="col-span-2 border-t border-amber-500/20 pt-3 mt-1">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-bold text-amber-300">Execution Protection</h4>
+              <span class="text-[9px] text-slate-500">For broker market-protection limit orders</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] text-slate-400 uppercase mb-1">Confirm Timeout Sec</label>
+                <input id="cfg_order_timeout" type="number" min="0.2" max="10" step="0.1" class="input-field" value="1.5">
+              </div>
+              <div>
+                <label class="block text-[10px] text-slate-400 uppercase mb-1">Pending Retry Count</label>
+                <input id="cfg_order_retries" type="number" min="0" max="5" step="1" class="input-field" value="1">
+              </div>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-2">Dhan orders are confirmed from order updates/order book. If still pending, the app cancels and retries before marking entry live.</p>
+          </div>
+
           <!-- Classic Risk Management -->
           <div id="classicRiskPanel" class="col-span-2 border-t border-white/5 pt-2 mt-1">
             <h4 class="text-xs font-bold text-white mb-2">Risk Management (MIS Only)</h4>
@@ -1302,7 +1567,7 @@
           <!-- Precision Sniper -->
           <div id="customStrategyPanel" class="hidden col-span-2 border-t border-cyan-500/20 pt-3 mt-1">
             <div class="flex items-center justify-between mb-2">
-              <h4 class="text-xs font-bold text-cyan-300">Precision Sniper Parameters (5-minute)</h4>
+              <h4 class="text-xs font-bold text-cyan-300">Precision Sniper Parameters</h4>
               <span class="text-[9px] text-slate-500">Entry is checked on the latest closed candle</span>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -1370,6 +1635,87 @@
             </div>
           </div>
 
+          <!-- GMMA OBV Strategy -->
+          <div id="gmmaObvPanel" class="hidden col-span-2 border-t border-violet-500/20 pt-3 mt-1">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-bold text-violet-300">GMMA + OBV Parameters</h4>
+              <span class="text-[9px] text-slate-500">Entry checks latest closed selected-timeframe candle</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div><label class="block text-[10px] text-violet-300 uppercase mb-1">ADX Min</label><input id="cfg_gmma_adx_min" type="number" step="0.5" class="input-field" value="21"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">ADX Length</label><input id="cfg_gmma_adx_len" type="number" class="input-field" value="14"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">ATR Length</label><input id="cfg_gmma_atr_len" type="number" class="input-field" value="14"></div>
+              <div><label class="block text-[10px] text-rose-300 uppercase mb-1">SL ATR Mult.</label><input id="cfg_gmma_sl_mult" type="number" step="0.1" class="input-field" value="1.2"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP1 R:R</label><input id="cfg_gmma_tp1" type="number" step="0.1" class="input-field" value="1"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP2 R:R</label><input id="cfg_gmma_tp2" type="number" step="0.1" class="input-field" value="2"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP3 R:R</label><input id="cfg_gmma_tp3" type="number" step="0.1" class="input-field" value="3"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Require GC/DC</label><select id="cfg_gmma_require_gc" class="input-field"><option value="true">Yes</option><option value="false">Trend Only</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">OBV Fast EMA</label><input id="cfg_gmma_obv_fast" type="number" class="input-field" value="5"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">OBV Medium EMA</label><input id="cfg_gmma_obv_medium" type="number" class="input-field" value="9"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">OBV Slow EMA</label><input id="cfg_gmma_obv_slow" type="number" class="input-field" value="14"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Donchian Base</label><input id="cfg_gmma_obv_donchian" type="number" class="input-field" value="26"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Target Trail</label><select id="cfg_gmma_trail" class="input-field"><option value="true">On</option><option value="false">Off</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Full Exit TP3</label><select id="cfg_gmma_exit_tp3" class="input-field"><option value="true">Yes</option><option value="false">Keep Runner</option></select></div>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-2">BUY requires GMMA golden cross, bullish OBV, price above VWAP, and ADX above threshold. SELL uses the matching bearish conditions.</p>
+          </div>
+
+          <!-- GMMA Gold Cross Strategy -->
+          <div id="gmmaGoldCrossPanel" class="hidden col-span-2 border-t border-fuchsia-500/20 pt-3 mt-1">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-bold text-fuchsia-300">GMMA Gold Cross + OBV Traffic Light</h4>
+              <span class="text-[9px] text-slate-500">Uses attached GMMA v5 GC/DC and OBV Traffic Light logic</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div><label class="block text-[10px] text-fuchsia-300 uppercase mb-1">Entry Mode</label><select id="cfg_ggc_entry_mode" class="input-field"><option>Golden Cross Only</option><option>Regime Mode</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">OBV Confirm</label><select id="cfg_ggc_require_obv" class="input-field"><option value="true">On</option><option value="false">Off</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Allow Shorts</label><select id="cfg_ggc_allow_shorts" class="input-field"><option value="true">Yes</option><option value="false">Long Only</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">OBV Fast EMA</label><input id="cfg_ggc_obv_fast" type="number" class="input-field" value="5"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">OBV Medium EMA</label><input id="cfg_ggc_obv_medium" type="number" class="input-field" value="9"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">OBV Slow EMA</label><input id="cfg_ggc_obv_slow" type="number" class="input-field" value="14"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Donchian Base</label><input id="cfg_ggc_obv_donchian" type="number" class="input-field" value="26"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">OBV Smooth</label><input id="cfg_ggc_obv_smoothing" type="number" class="input-field" value="1"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">ATR Length</label><input id="cfg_ggc_atr_len" type="number" class="input-field" value="14"></div>
+              <div><label class="block text-[10px] text-rose-300 uppercase mb-1">SL ATR Mult.</label><input id="cfg_ggc_sl_mult" type="number" step="0.1" class="input-field" value="1.2"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP1 R:R</label><input id="cfg_ggc_tp1" type="number" step="0.1" class="input-field" value="1"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP2 R:R</label><input id="cfg_ggc_tp2" type="number" step="0.1" class="input-field" value="2"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP3 R:R</label><input id="cfg_ggc_tp3" type="number" step="0.1" class="input-field" value="3"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Target Trail</label><select id="cfg_ggc_trail" class="input-field"><option value="true">On</option><option value="false">Off</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Full Exit TP3</label><select id="cfg_ggc_exit_tp3" class="input-field"><option value="true">Yes</option><option value="false">Keep Runner</option></select></div>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-2">Strict mode enters only on fresh GC/DC. Regime Mode enters while all short EMAs are above/below all long EMAs and OBV confirms.</p>
+          </div>
+
+          <!-- Liquidity Sweep Strategy -->
+          <div id="liquiditySweepPanel" class="hidden col-span-2 border-t border-amber-500/20 pt-3 mt-1">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-bold text-amber-300">Liquidity Sweep + GK + Ranked S/R</h4>
+              <span class="text-[9px] text-slate-500">Sweep/reclaim + optional CHoCH + trend/SR filters</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div><label class="block text-[10px] text-amber-300 uppercase mb-1">Swing Length</label><input id="cfg_liq_swing" type="number" class="input-field" value="21"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Max Sweep Bars</label><input id="cfg_liq_lookback" type="number" class="input-field" value="80"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Min Score</label><input id="cfg_liq_min_score" type="number" class="input-field" value="50"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Require CHoCH</label><select id="cfg_liq_choch" class="input-field"><option value="true">Yes</option><option value="false">No</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Structure Pivot</label><input id="cfg_liq_minor" type="number" class="input-field" value="8"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Confirm Window</label><input id="cfg_liq_confirm" type="number" class="input-field" value="13"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Volume Filter</label><select id="cfg_liq_use_volume" class="input-field"><option value="true">On</option><option value="false">Off</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Vol Spike xMA</label><input id="cfg_liq_vol_mult" type="number" step="0.1" class="input-field" value="1.5"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Risk Preset</label><select id="cfg_liq_risk_preset" class="input-field"><option>Balanced</option><option>Conservative</option><option>Aggressive</option><option>Scalping</option><option>Custom</option></select></div>
+              <div><label class="block text-[10px] text-rose-300 uppercase mb-1">SL Buffer ATR</label><input id="cfg_liq_sl_buffer" type="number" step="0.05" class="input-field" value="0.25"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP1 R:R</label><input id="cfg_liq_tp1" type="number" step="0.1" class="input-field" value="1"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP2 R:R</label><input id="cfg_liq_tp2" type="number" step="0.1" class="input-field" value="2"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP3 R:R</label><input id="cfg_liq_tp3" type="number" step="0.1" class="input-field" value="3"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">GK Filter</label><select id="cfg_liq_gk_on" class="input-field"><option value="true">On</option><option value="false">Off</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">GK Length</label><input id="cfg_liq_gk_len" type="number" class="input-field" value="200"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">S/R Filter</label><select id="cfg_liq_sr_on" class="input-field"><option value="true">On</option><option value="false">Off</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">S/R Near ATR</label><input id="cfg_liq_sr_near" type="number" step="0.1" class="input-field" value="1"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Target Trail</label><select id="cfg_liq_trail" class="input-field"><option value="true">On</option><option value="false">Off</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Full Exit TP3</label><select id="cfg_liq_exit_tp3" class="input-field"><option value="true">Yes</option><option value="false">Keep Runner</option></select></div>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-2">BUY requires sell-side liquidity sweep/reclaim; SELL requires buy-side sweep/reclaim. CHoCH waits for structure break after the sweep when enabled.</p>
+          </div>
+
           <!-- Daily P&L Exit (Account-level) -->
           <div class="col-span-2 border-t border-white/5 pt-2 mt-1">
             <h4 class="text-xs font-bold text-white mb-2">Daily P&amp;L Exit (Account)</h4>
@@ -1431,12 +1777,68 @@
               </div>
             </div>
             <!-- Dynamic Top Sectors Display -->
-            <div id="topSecContainer" class="col-span-2 mt-1 hidden">
+          <div id="topSecContainer" class="col-span-2 mt-1 hidden">
               <label class="block text-xs font-semibold text-emerald-400 uppercase mb-1">Current Top Sectors</label>
               <div id="topSecList" class="flex flex-wrap gap-1.5 text-[10px]">
                 <!-- Injected by JS -->
               </div>
             </div>
+          </div>
+
+          <!-- Pure Liquidity Sweep Strategy -->
+          <div id="pureLiquiditySweepPanel" class="hidden col-span-2 border-t border-emerald-500/20 pt-3 mt-1">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-bold text-emerald-300">Pure Liquidity Sweep</h4>
+              <span class="text-[9px] text-slate-500">Mirage/Lux style sweep, optional retest + CHoCH</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div><label class="block text-[10px] text-emerald-300 uppercase mb-1">Swing Length</label><input id="cfg_pliq_swing" type="number" class="input-field" value="21"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Max Sweep Bars</label><input id="cfg_pliq_lookback" type="number" class="input-field" value="80"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Sweep Mode</label><select id="cfg_pliq_mode" class="input-field"><option>Wicks + Outbreaks & Retest</option><option>Only Wicks</option><option>Only Outbreaks & Retest</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Min Score</label><input id="cfg_pliq_min_score" type="number" class="input-field" value="50"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Require CHoCH</label><select id="cfg_pliq_choch" class="input-field"><option value="true">Yes</option><option value="false">No</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Structure Pivot</label><input id="cfg_pliq_minor" type="number" class="input-field" value="8"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Confirm Window</label><input id="cfg_pliq_confirm" type="number" class="input-field" value="13"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Volume Filter</label><select id="cfg_pliq_use_volume" class="input-field"><option value="true">On</option><option value="false">Off</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Vol Len</label><input id="cfg_pliq_vol_len" type="number" class="input-field" value="21"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Vol Spike xMA</label><input id="cfg_pliq_vol_mult" type="number" step="0.1" class="input-field" value="1.5"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">HTF Bias</label><select id="cfg_pliq_htf_on" class="input-field"><option value="true">On</option><option value="false">Off</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">HTF EMA</label><input id="cfg_pliq_htf_ema" type="number" class="input-field" value="50"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Risk Preset</label><select id="cfg_pliq_risk_preset" class="input-field"><option>Balanced</option><option>Conservative</option><option>Aggressive</option><option>Scalping</option><option>Custom</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">ATR Len</label><input id="cfg_pliq_atr_len" type="number" class="input-field" value="14"></div>
+              <div><label class="block text-[10px] text-rose-300 uppercase mb-1">SL Buffer ATR</label><input id="cfg_pliq_sl_buffer" type="number" step="0.05" class="input-field" value="0.25"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP1 R:R</label><input id="cfg_pliq_tp1" type="number" step="0.1" class="input-field" value="1"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP2 R:R</label><input id="cfg_pliq_tp2" type="number" step="0.1" class="input-field" value="2"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP3 R:R</label><input id="cfg_pliq_tp3" type="number" step="0.1" class="input-field" value="3"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Trail / BE</label><select id="cfg_pliq_trail" class="input-field"><option value="true">On</option><option value="false">Off</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Full Exit TP3</label><select id="cfg_pliq_exit_tp3" class="input-field"><option value="true">Yes</option><option value="false">Keep Runner</option></select></div>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-2">Pure mode does not use GK ribbon or ranked S/R. Score follows wick, reclaim, candle close position, volume and HTF bias components.</p>
+          </div>
+
+          <!-- GVK Trend Strategy -->
+          <div id="gvkTrendPanel" class="hidden col-span-2 border-t border-sky-500/20 pt-3 mt-1">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-bold text-sky-300">GVK Trend Ribbon</h4>
+              <span class="text-[9px] text-slate-500">Zero-lag EMA ribbon + ATR bands + confirmed trend flip</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div><label class="block text-[10px] text-sky-300 uppercase mb-1">Ribbon Length</label><input id="cfg_gvk_len" type="number" class="input-field" value="200"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Band Mult</label><input id="cfg_gvk_mult" type="number" step="0.1" class="input-field" value="2"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Band ATR Len</label><input id="cfg_gvk_gk_atr_len" type="number" class="input-field" value="21"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Confirm Bars</label><input id="cfg_gvk_confirm" type="number" min="1" max="3" class="input-field" value="2"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Entry Mode</label><select id="cfg_gvk_entry_mode" class="input-field"><option>Trend Flip Only</option><option>Trend Mode</option></select></div>
+              <div><label class="block text-[10px] text-cyan-300 uppercase mb-1">Min Score</label><input id="cfg_gvk_min_score" type="number" step="0.5" class="input-field" value="4"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Risk ATR Len</label><input id="cfg_gvk_atr_len" type="number" class="input-field" value="14"></div>
+              <div><label class="block text-[10px] text-rose-300 uppercase mb-1">SL ATR Mult</label><input id="cfg_gvk_sl_mult" type="number" step="0.1" class="input-field" value="1.2"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP1 R:R</label><input id="cfg_gvk_tp1" type="number" step="0.1" class="input-field" value="1"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP2 R:R</label><input id="cfg_gvk_tp2" type="number" step="0.1" class="input-field" value="2"></div>
+              <div><label class="block text-[10px] text-emerald-400 uppercase mb-1">TP3 R:R</label><input id="cfg_gvk_tp3" type="number" step="0.1" class="input-field" value="3"></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Trail / BE</label><select id="cfg_gvk_trail" class="input-field"><option value="true">On</option><option value="false">Off</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Full Exit TP3</label><select id="cfg_gvk_exit_tp3" class="input-field"><option value="true">Yes</option><option value="false">Keep Runner</option></select></div>
+              <div><label class="block text-[10px] text-slate-400 uppercase mb-1">Exit Reversal</label><select id="cfg_gvk_exit_reversal" class="input-field"><option value="true">On</option><option value="false">Off</option></select></div>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-2">Default mode enters only on confirmed bullish/bearish ribbon flips. Trend Mode allows continuation entries while the ribbon remains in confirmed mode.</p>
           </div>
         </div>
 
@@ -1752,11 +2154,23 @@
 
     /* --- Config Logic --- */
     let PNL_EXIT_CFG = null;
+    let BACKTEST_CONFIGS = {};
 
     function toggleStrategyMode() {
-      const custom = document.getElementById("cfg_strategy_mode").value === "PRECISION_SNIPER";
-      document.getElementById("customStrategyPanel").classList.toggle("hidden", !custom);
-      document.getElementById("classicRiskPanel").classList.toggle("hidden", custom);
+      const mode = document.getElementById("cfg_strategy_mode").value;
+      const precision = mode === "PRECISION_SNIPER";
+      const gmma = mode === "GMMA_OBV";
+      const ggc = mode === "GMMA_GOLD_CROSS";
+      const liq = mode === "LIQUIDITY_SWEEP";
+      const pliq = mode === "PURE_LIQUIDITY_SWEEP";
+      const gvk = mode === "GVK_TREND";
+      document.getElementById("customStrategyPanel").classList.toggle("hidden", !precision);
+      document.getElementById("gmmaObvPanel").classList.toggle("hidden", !gmma);
+      document.getElementById("gmmaGoldCrossPanel").classList.toggle("hidden", !ggc);
+      document.getElementById("liquiditySweepPanel").classList.toggle("hidden", !liq);
+      document.getElementById("pureLiquiditySweepPanel").classList.toggle("hidden", !pliq);
+      document.getElementById("gvkTrendPanel").classList.toggle("hidden", !gvk);
+      document.getElementById("classicRiskPanel").classList.toggle("hidden", precision || gmma || ggc || liq || pliq || gvk);
     }
 
     function togglePartialProfitFields() {
@@ -1810,11 +2224,13 @@
       }
     }
 
-    async function loadCfgList() {
+      async function loadCfgList() {
       const d = await (await fetch(`/api/alert-config?user_id=${USER_ID}`)).json();
       const list = document.getElementById("cfgList");
       list.innerHTML = "";
       const cfgs = d.configs || {};
+      BACKTEST_CONFIGS = cfgs;
+      fillBacktestConfigOptions();
 
       if (Object.keys(cfgs).length === 0) {
         list.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">No saved strategies found.</div>`;
@@ -1839,7 +2255,7 @@
             </div>
             <div class="text-[10px] text-slate-400 mt-1 font-mono flex flex-wrap gap-x-3 gap-y-1">
               <span><span class="${c.direction === 'LONG' ? 'text-emerald-400' : 'text-rose-400'}">${c.direction}</span> • <span class="text-cyan-200">${c.product}</span></span>
-              <span>Engine: <span class="text-cyan-300">${c.strategy_mode === 'PRECISION_SNIPER' ? 'SNIPER 5M' : 'CLASSIC'}</span></span>
+              <span>Engine: <span class="text-cyan-300">${c.strategy_mode === 'PRECISION_SNIPER' ? `SNIPER ${c.strategy_timeframe_minutes || 5}M` : c.strategy_mode === 'GMMA_OBV' ? `GMMA OBV ${c.strategy_timeframe_minutes || 5}M` : c.strategy_mode === 'GMMA_GOLD_CROSS' ? `GMMA GC ${c.strategy_timeframe_minutes || 5}M` : c.strategy_mode === 'LIQUIDITY_SWEEP' ? `LIQ SWEEP ${c.strategy_timeframe_minutes || 5}M` : c.strategy_mode === 'PURE_LIQUIDITY_SWEEP' ? `PURE LIQ ${c.strategy_timeframe_minutes || 5}M` : c.strategy_mode === 'GVK_TREND' ? `GVK ${c.strategy_timeframe_minutes || 5}M` : 'CLASSIC'}</span></span>
               <span>Target: <span class="text-white">${c.target_pct}%</span></span>
               <span>SL: <span class="text-rose-300">${c.stop_loss_pct}%</span></span>
               <span>TSL: <span class="text-blue-300">${c.trailing_sl_pct}%</span></span>
@@ -1887,7 +2303,10 @@
         "cfg_sector_on": String(!!c.sector_filter_on), "cfg_topn": c.top_n_sector,
         "cfg_entry_start": c.entry_start_time || "09:15",
         "cfg_entry_end": c.entry_end_time || "15:15",
+        "cfg_order_timeout": c.order_confirm_timeout_sec ?? c.execution_confirm_timeout_sec ?? 1.5,
+        "cfg_order_retries": c.order_pending_retry_count ?? c.execution_retry_count ?? 1,
         "cfg_strategy_mode": c.strategy_mode || "CLASSIC",
+        "cfg_timeframe": c.strategy_timeframe_minutes || c.timeframe_minutes || 5,
         "cfg_custom_preset": c.custom_preset || "Auto",
         "cfg_custom_htf": c.custom_htf_minutes || 5,
         "cfg_custom_grade": c.custom_grade_filter || "All",
@@ -1912,7 +2331,89 @@
         "cfg_custom_partial_on": String(c.custom_partial_profit_enabled ?? false),
         "cfg_custom_partial_tp1": c.custom_partial_tp1_pct ?? 50,
         "cfg_custom_partial_tp2": c.custom_partial_tp2_pct ?? 25,
-        "cfg_custom_partial_tp3": c.custom_partial_tp3_pct ?? 25
+        "cfg_custom_partial_tp3": c.custom_partial_tp3_pct ?? 25,
+        "cfg_gmma_adx_min": c.gmma_adx_min ?? 21,
+        "cfg_gmma_adx_len": c.gmma_adx_len ?? 14,
+        "cfg_gmma_atr_len": c.gmma_atr_len ?? 14,
+        "cfg_gmma_sl_mult": c.gmma_sl_mult ?? 1.2,
+        "cfg_gmma_tp1": c.gmma_tp1_mult ?? 1,
+        "cfg_gmma_tp2": c.gmma_tp2_mult ?? 2,
+        "cfg_gmma_tp3": c.gmma_tp3_mult ?? 3,
+        "cfg_gmma_require_gc": String(c.gmma_require_gc ?? true),
+        "cfg_gmma_obv_fast": c.gmma_obv_fast ?? 5,
+        "cfg_gmma_obv_medium": c.gmma_obv_medium ?? 9,
+        "cfg_gmma_obv_slow": c.gmma_obv_slow ?? 14,
+        "cfg_gmma_obv_donchian": c.gmma_obv_donchian ?? 26,
+        "cfg_gmma_trail": String(c.gmma_use_trail ?? true),
+        "cfg_gmma_exit_tp3": String(c.gmma_full_exit_tp3 ?? true),
+        "cfg_ggc_entry_mode": c.ggc_entry_mode || "Golden Cross Only",
+        "cfg_ggc_require_obv": String(c.ggc_require_obv ?? true),
+        "cfg_ggc_allow_shorts": String(c.ggc_allow_shorts ?? true),
+        "cfg_ggc_obv_fast": c.ggc_obv_fast ?? 5,
+        "cfg_ggc_obv_medium": c.ggc_obv_medium ?? 9,
+        "cfg_ggc_obv_slow": c.ggc_obv_slow ?? 14,
+        "cfg_ggc_obv_donchian": c.ggc_obv_donchian ?? 26,
+        "cfg_ggc_obv_smoothing": c.ggc_obv_smoothing ?? 1,
+        "cfg_ggc_atr_len": c.ggc_atr_len ?? 14,
+        "cfg_ggc_sl_mult": c.ggc_sl_mult ?? 1.2,
+        "cfg_ggc_tp1": c.ggc_tp1_mult ?? 1,
+        "cfg_ggc_tp2": c.ggc_tp2_mult ?? 2,
+        "cfg_ggc_tp3": c.ggc_tp3_mult ?? 3,
+        "cfg_ggc_trail": String(c.ggc_use_trail ?? true),
+        "cfg_ggc_exit_tp3": String(c.ggc_full_exit_tp3 ?? true),
+        "cfg_liq_swing": c.liq_swing_len ?? 21,
+        "cfg_liq_lookback": c.liq_lookback_bars ?? 80,
+        "cfg_liq_min_score": c.liq_min_score ?? 50,
+        "cfg_liq_choch": String(c.liq_require_choch ?? true),
+        "cfg_liq_minor": c.liq_minor_len ?? 8,
+        "cfg_liq_confirm": c.liq_confirm_window ?? 13,
+        "cfg_liq_use_volume": String(c.liq_use_volume ?? true),
+        "cfg_liq_vol_mult": c.liq_vol_mult ?? 1.5,
+        "cfg_liq_risk_preset": c.liq_risk_preset || "Balanced",
+        "cfg_liq_sl_buffer": c.liq_sl_buffer_atr ?? 0.25,
+        "cfg_liq_tp1": c.liq_tp1_mult ?? 1,
+        "cfg_liq_tp2": c.liq_tp2_mult ?? 2,
+        "cfg_liq_tp3": c.liq_tp3_mult ?? 3,
+        "cfg_liq_gk_on": String(c.liq_use_gk_filter ?? true),
+        "cfg_liq_gk_len": c.liq_gk_len ?? 200,
+        "cfg_liq_sr_on": String(c.liq_use_sr_filter ?? true),
+        "cfg_liq_sr_near": c.liq_sr_near_atr ?? 1,
+        "cfg_liq_trail": String(c.liq_use_trail ?? true),
+        "cfg_liq_exit_tp3": String(c.liq_full_exit_tp3 ?? true),
+        "cfg_pliq_swing": c.pliq_swing_len ?? 21,
+        "cfg_pliq_lookback": c.pliq_lookback_bars ?? 80,
+        "cfg_pliq_mode": c.pliq_sweep_mode || "Wicks + Outbreaks & Retest",
+        "cfg_pliq_min_score": c.pliq_min_score ?? 50,
+        "cfg_pliq_choch": String(c.pliq_require_choch ?? true),
+        "cfg_pliq_minor": c.pliq_minor_len ?? 8,
+        "cfg_pliq_confirm": c.pliq_confirm_window ?? 13,
+        "cfg_pliq_use_volume": String(c.pliq_use_volume ?? true),
+        "cfg_pliq_vol_len": c.pliq_vol_len ?? 21,
+        "cfg_pliq_vol_mult": c.pliq_vol_mult ?? 1.5,
+        "cfg_pliq_htf_on": String(c.pliq_use_htf_bias ?? true),
+        "cfg_pliq_htf_ema": c.pliq_htf_ema_len ?? 50,
+        "cfg_pliq_risk_preset": c.pliq_risk_preset || "Balanced",
+        "cfg_pliq_atr_len": c.pliq_atr_len ?? 14,
+        "cfg_pliq_sl_buffer": c.pliq_sl_buffer_atr ?? 0.25,
+        "cfg_pliq_tp1": c.pliq_tp1_mult ?? 1,
+        "cfg_pliq_tp2": c.pliq_tp2_mult ?? 2,
+        "cfg_pliq_tp3": c.pliq_tp3_mult ?? 3,
+        "cfg_pliq_trail": String(c.pliq_use_trail ?? true),
+        "cfg_pliq_exit_tp3": String(c.pliq_full_exit_tp3 ?? true),
+        "cfg_gvk_len": c.gvk_gk_len ?? 200,
+        "cfg_gvk_mult": c.gvk_gk_mult ?? 2,
+        "cfg_gvk_gk_atr_len": c.gvk_gk_atr_len ?? 21,
+        "cfg_gvk_confirm": c.gvk_gk_confirm_bars ?? 2,
+        "cfg_gvk_entry_mode": c.gvk_entry_mode || "Trend Flip Only",
+        "cfg_gvk_min_score": c.gvk_min_score ?? 4,
+        "cfg_gvk_atr_len": c.gvk_atr_len ?? 14,
+        "cfg_gvk_sl_mult": c.gvk_sl_mult ?? 1.2,
+        "cfg_gvk_tp1": c.gvk_tp1_mult ?? 1,
+        "cfg_gvk_tp2": c.gvk_tp2_mult ?? 2,
+        "cfg_gvk_tp3": c.gvk_tp3_mult ?? 3,
+        "cfg_gvk_trail": String(c.gvk_use_trail ?? true),
+        "cfg_gvk_exit_tp3": String(c.gvk_full_exit_tp3 ?? true),
+        "cfg_gvk_exit_reversal": String(c.gvk_exit_on_reversal ?? true)
       };
       for (let k in sets) {
         const el = document.getElementById(k);
@@ -1942,6 +2443,9 @@
         entry_start_time: document.getElementById("cfg_entry_start").value || "09:15",
         entry_end_time: document.getElementById("cfg_entry_end").value || "15:15",
         strategy_mode: document.getElementById("cfg_strategy_mode").value,
+        strategy_timeframe_minutes: parseInt(document.getElementById("cfg_timeframe").value || 5),
+        order_confirm_timeout_sec: parseFloat(document.getElementById("cfg_order_timeout").value || 1.5),
+        order_pending_retry_count: parseInt(document.getElementById("cfg_order_retries").value || 1),
         custom_preset: document.getElementById("cfg_custom_preset").value,
         custom_htf_minutes: parseInt(document.getElementById("cfg_custom_htf").value || 5),
         custom_grade_filter: document.getElementById("cfg_custom_grade").value,
@@ -1967,9 +2471,111 @@
         custom_partial_tp1_pct: parseFloat(document.getElementById("cfg_custom_partial_tp1").value || 0),
         custom_partial_tp2_pct: parseFloat(document.getElementById("cfg_custom_partial_tp2").value || 0),
         custom_partial_tp3_pct: parseFloat(document.getElementById("cfg_custom_partial_tp3").value || 0),
+        gmma_adx_min: parseFloat(document.getElementById("cfg_gmma_adx_min").value || 21),
+        gmma_adx_len: parseInt(document.getElementById("cfg_gmma_adx_len").value || 14),
+        gmma_atr_len: parseInt(document.getElementById("cfg_gmma_atr_len").value || 14),
+        gmma_sl_mult: parseFloat(document.getElementById("cfg_gmma_sl_mult").value || 1.2),
+        gmma_tp1_mult: parseFloat(document.getElementById("cfg_gmma_tp1").value || 1),
+        gmma_tp2_mult: parseFloat(document.getElementById("cfg_gmma_tp2").value || 2),
+        gmma_tp3_mult: parseFloat(document.getElementById("cfg_gmma_tp3").value || 3),
+        gmma_require_gc: document.getElementById("cfg_gmma_require_gc").value === "true",
+        gmma_obv_fast: parseInt(document.getElementById("cfg_gmma_obv_fast").value || 5),
+        gmma_obv_medium: parseInt(document.getElementById("cfg_gmma_obv_medium").value || 9),
+        gmma_obv_slow: parseInt(document.getElementById("cfg_gmma_obv_slow").value || 14),
+        gmma_obv_donchian: parseInt(document.getElementById("cfg_gmma_obv_donchian").value || 26),
+        gmma_use_trail: document.getElementById("cfg_gmma_trail").value === "true",
+        gmma_full_exit_tp3: document.getElementById("cfg_gmma_exit_tp3").value === "true",
+        ggc_entry_mode: document.getElementById("cfg_ggc_entry_mode").value,
+        ggc_require_obv: document.getElementById("cfg_ggc_require_obv").value === "true",
+        ggc_allow_shorts: document.getElementById("cfg_ggc_allow_shorts").value === "true",
+        ggc_obv_fast: parseInt(document.getElementById("cfg_ggc_obv_fast").value || 5),
+        ggc_obv_medium: parseInt(document.getElementById("cfg_ggc_obv_medium").value || 9),
+        ggc_obv_slow: parseInt(document.getElementById("cfg_ggc_obv_slow").value || 14),
+        ggc_obv_donchian: parseInt(document.getElementById("cfg_ggc_obv_donchian").value || 26),
+        ggc_obv_smoothing: parseInt(document.getElementById("cfg_ggc_obv_smoothing").value || 1),
+        ggc_atr_len: parseInt(document.getElementById("cfg_ggc_atr_len").value || 14),
+        ggc_sl_mult: parseFloat(document.getElementById("cfg_ggc_sl_mult").value || 1.2),
+        ggc_tp1_mult: parseFloat(document.getElementById("cfg_ggc_tp1").value || 1),
+        ggc_tp2_mult: parseFloat(document.getElementById("cfg_ggc_tp2").value || 2),
+        ggc_tp3_mult: parseFloat(document.getElementById("cfg_ggc_tp3").value || 3),
+        ggc_use_trail: document.getElementById("cfg_ggc_trail").value === "true",
+        ggc_full_exit_tp3: document.getElementById("cfg_ggc_exit_tp3").value === "true",
+        liq_swing_len: parseInt(document.getElementById("cfg_liq_swing").value || 21),
+        liq_lookback_bars: parseInt(document.getElementById("cfg_liq_lookback").value || 80),
+        liq_min_score: parseFloat(document.getElementById("cfg_liq_min_score").value || 50),
+        liq_require_choch: document.getElementById("cfg_liq_choch").value === "true",
+        liq_minor_len: parseInt(document.getElementById("cfg_liq_minor").value || 8),
+        liq_confirm_window: parseInt(document.getElementById("cfg_liq_confirm").value || 13),
+        liq_use_volume: document.getElementById("cfg_liq_use_volume").value === "true",
+        liq_vol_mult: parseFloat(document.getElementById("cfg_liq_vol_mult").value || 1.5),
+        liq_risk_preset: document.getElementById("cfg_liq_risk_preset").value,
+        liq_sl_buffer_atr: parseFloat(document.getElementById("cfg_liq_sl_buffer").value || 0.25),
+        liq_tp1_mult: parseFloat(document.getElementById("cfg_liq_tp1").value || 1),
+        liq_tp2_mult: parseFloat(document.getElementById("cfg_liq_tp2").value || 2),
+        liq_tp3_mult: parseFloat(document.getElementById("cfg_liq_tp3").value || 3),
+        liq_use_gk_filter: document.getElementById("cfg_liq_gk_on").value === "true",
+        liq_gk_len: parseInt(document.getElementById("cfg_liq_gk_len").value || 200),
+        liq_use_sr_filter: document.getElementById("cfg_liq_sr_on").value === "true",
+        liq_sr_near_atr: parseFloat(document.getElementById("cfg_liq_sr_near").value || 1),
+        liq_use_trail: document.getElementById("cfg_liq_trail").value === "true",
+        liq_full_exit_tp3: document.getElementById("cfg_liq_exit_tp3").value === "true",
+        pliq_swing_len: parseInt(document.getElementById("cfg_pliq_swing").value || 21),
+        pliq_lookback_bars: parseInt(document.getElementById("cfg_pliq_lookback").value || 80),
+        pliq_sweep_mode: document.getElementById("cfg_pliq_mode").value,
+        pliq_min_score: parseFloat(document.getElementById("cfg_pliq_min_score").value || 50),
+        pliq_require_choch: document.getElementById("cfg_pliq_choch").value === "true",
+        pliq_minor_len: parseInt(document.getElementById("cfg_pliq_minor").value || 8),
+        pliq_confirm_window: parseInt(document.getElementById("cfg_pliq_confirm").value || 13),
+        pliq_use_volume: document.getElementById("cfg_pliq_use_volume").value === "true",
+        pliq_vol_len: parseInt(document.getElementById("cfg_pliq_vol_len").value || 21),
+        pliq_vol_mult: parseFloat(document.getElementById("cfg_pliq_vol_mult").value || 1.5),
+        pliq_use_htf_bias: document.getElementById("cfg_pliq_htf_on").value === "true",
+        pliq_htf_ema_len: parseInt(document.getElementById("cfg_pliq_htf_ema").value || 50),
+        pliq_risk_preset: document.getElementById("cfg_pliq_risk_preset").value,
+        pliq_atr_len: parseInt(document.getElementById("cfg_pliq_atr_len").value || 14),
+        pliq_sl_buffer_atr: parseFloat(document.getElementById("cfg_pliq_sl_buffer").value || 0.25),
+        pliq_tp1_mult: parseFloat(document.getElementById("cfg_pliq_tp1").value || 1),
+        pliq_tp2_mult: parseFloat(document.getElementById("cfg_pliq_tp2").value || 2),
+        pliq_tp3_mult: parseFloat(document.getElementById("cfg_pliq_tp3").value || 3),
+        pliq_use_trail: document.getElementById("cfg_pliq_trail").value === "true",
+        pliq_full_exit_tp3: document.getElementById("cfg_pliq_exit_tp3").value === "true",
+        gvk_gk_len: parseInt(document.getElementById("cfg_gvk_len").value || 200),
+        gvk_gk_mult: parseFloat(document.getElementById("cfg_gvk_mult").value || 2),
+        gvk_gk_atr_len: parseInt(document.getElementById("cfg_gvk_gk_atr_len").value || 21),
+        gvk_gk_confirm_bars: parseInt(document.getElementById("cfg_gvk_confirm").value || 2),
+        gvk_entry_mode: document.getElementById("cfg_gvk_entry_mode").value,
+        gvk_min_score: parseFloat(document.getElementById("cfg_gvk_min_score").value || 4),
+        gvk_atr_len: parseInt(document.getElementById("cfg_gvk_atr_len").value || 14),
+        gvk_sl_mult: parseFloat(document.getElementById("cfg_gvk_sl_mult").value || 1.2),
+        gvk_tp1_mult: parseFloat(document.getElementById("cfg_gvk_tp1").value || 1),
+        gvk_tp2_mult: parseFloat(document.getElementById("cfg_gvk_tp2").value || 2),
+        gvk_tp3_mult: parseFloat(document.getElementById("cfg_gvk_tp3").value || 3),
+        gvk_use_trail: document.getElementById("cfg_gvk_trail").value === "true",
+        gvk_full_exit_tp3: document.getElementById("cfg_gvk_exit_tp3").value === "true",
+        gvk_exit_on_reversal: document.getElementById("cfg_gvk_exit_reversal").value === "true",
       };
 
       if (!payload.alert_name) { toast("Alert Name is required", 'error'); return; }
+      if (payload.strategy_mode === "GMMA_OBV" && !(payload.gmma_tp1_mult < payload.gmma_tp2_mult && payload.gmma_tp2_mult < payload.gmma_tp3_mult)) {
+        toast("GMMA targets must be ordered TP1 < TP2 < TP3", "error");
+        return;
+      }
+      if (payload.strategy_mode === "GMMA_GOLD_CROSS" && !(payload.ggc_tp1_mult < payload.ggc_tp2_mult && payload.ggc_tp2_mult < payload.ggc_tp3_mult)) {
+        toast("GMMA Gold Cross targets must be ordered TP1 < TP2 < TP3", "error");
+        return;
+      }
+      if (payload.strategy_mode === "LIQUIDITY_SWEEP" && !(payload.liq_tp1_mult < payload.liq_tp2_mult && payload.liq_tp2_mult < payload.liq_tp3_mult)) {
+        toast("Liquidity Sweep targets must be ordered TP1 < TP2 < TP3", "error");
+        return;
+      }
+      if (payload.strategy_mode === "PURE_LIQUIDITY_SWEEP" && !(payload.pliq_tp1_mult < payload.pliq_tp2_mult && payload.pliq_tp2_mult < payload.pliq_tp3_mult)) {
+        toast("Pure Liquidity targets must be ordered TP1 < TP2 < TP3", "error");
+        return;
+      }
+      if (payload.strategy_mode === "GVK_TREND" && !(payload.gvk_tp1_mult < payload.gvk_tp2_mult && payload.gvk_tp2_mult < payload.gvk_tp3_mult)) {
+        toast("GVK Trend targets must be ordered TP1 < TP2 < TP3", "error");
+        return;
+      }
       if (payload.strategy_mode === "PRECISION_SNIPER" && payload.custom_partial_profit_enabled) {
         const partialTotal = payload.custom_partial_tp1_pct + payload.custom_partial_tp2_pct + payload.custom_partial_tp3_pct;
         if (Math.abs(partialTotal - 100) > 0.001) {
@@ -2010,6 +2616,483 @@
         }
       } catch (e) {
         toast("Failed to delete strategy", 'error');
+      }
+    }
+
+    function fillBacktestConfigOptions() {
+      const sel = document.getElementById("bt_config");
+      if (!sel) return;
+      const current = sel.value;
+      sel.innerHTML = `<option value="">Manual Defaults</option>`;
+      Object.keys(BACKTEST_CONFIGS || {}).sort().forEach(name => {
+        const cfg = BACKTEST_CONFIGS[name] || {};
+        if (cfg.strategy_mode === "PRECISION_SNIPER" || cfg.strategy_mode === "GMMA_OBV" || cfg.strategy_mode === "GMMA_GOLD_CROSS" || cfg.strategy_mode === "LIQUIDITY_SWEEP" || cfg.strategy_mode === "PURE_LIQUIDITY_SWEEP" || cfg.strategy_mode === "GVK_TREND") {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = `${name} (${cfg.strategy_mode === "GMMA_OBV" ? "GMMA" : cfg.strategy_mode === "GMMA_GOLD_CROSS" ? "GMMA GC" : cfg.strategy_mode === "LIQUIDITY_SWEEP" ? "Liq Sweep" : cfg.strategy_mode === "PURE_LIQUIDITY_SWEEP" ? "Pure Liq" : cfg.strategy_mode === "GVK_TREND" ? "GVK" : "Sniper"} ${cfg.strategy_timeframe_minutes || 5}m)`;
+          sel.appendChild(opt);
+        }
+      });
+      if (current && BACKTEST_CONFIGS[current]) sel.value = current;
+    }
+
+    function applyBacktestConfig() {
+      const name = document.getElementById("bt_config").value;
+      const cfg = BACKTEST_CONFIGS[name] || {};
+      if (cfg.strategy_mode) document.getElementById("bt_strategy").value = cfg.strategy_mode;
+      if (cfg.strategy_timeframe_minutes || cfg.timeframe_minutes) {
+        document.getElementById("bt_timeframe").value = String(cfg.strategy_timeframe_minutes || cfg.timeframe_minutes || 5);
+      }
+      setBacktestLiquidityFields(cfg);
+      setBacktestPureLiquidityFields(cfg);
+      setBacktestGvkFields(cfg);
+      setBacktestGgcFields(cfg);
+      toggleBacktestStrategyPanels();
+    }
+
+    function setFieldValue(id, value) {
+      const el = document.getElementById(id);
+      if (!el || value === undefined || value === null) return;
+      el.value = String(value);
+    }
+
+    function setBacktestLiquidityBalanced() {
+      setBacktestLiquidityFields({
+        liq_gk_len: 100,
+        liq_gk_mult: 1.8,
+        liq_gk_atr_len: 14,
+        liq_gk_confirm_bars: 1,
+        liq_lookback_bars: 50,
+        liq_swing_len: 13,
+        liq_minor_len: 5,
+        liq_confirm_window: 8,
+        liq_require_choch: true,
+        liq_use_volume: true,
+        liq_vol_len: 14,
+        liq_vol_mult: 1.2,
+        liq_use_gk_filter: true,
+        liq_use_htf_bias: true,
+        liq_use_sr_filter: false,
+        liq_htf_ema_len: 34,
+        liq_min_score: 40,
+      });
+      toast("Balanced Liquidity Sweep backtest settings applied", "success");
+    }
+
+    function setBacktestLiquidityFields(cfg = {}) {
+      setFieldValue("bt_liq_gk_len", cfg.liq_gk_len ?? 100);
+      setFieldValue("bt_liq_gk_mult", cfg.liq_gk_mult ?? 1.8);
+      setFieldValue("bt_liq_gk_atr_len", cfg.liq_gk_atr_len ?? 14);
+      setFieldValue("bt_liq_gk_confirm", cfg.liq_gk_confirm_bars ?? 1);
+      setFieldValue("bt_liq_swing", cfg.liq_swing_len ?? 13);
+      setFieldValue("bt_liq_lookback", cfg.liq_lookback_bars ?? 50);
+      setFieldValue("bt_liq_minor", cfg.liq_minor_len ?? 5);
+      setFieldValue("bt_liq_confirm", cfg.liq_confirm_window ?? 8);
+      setFieldValue("bt_liq_choch", String(cfg.liq_require_choch ?? true));
+      setFieldValue("bt_liq_use_volume", String(cfg.liq_use_volume ?? true));
+      setFieldValue("bt_liq_vol_len", cfg.liq_vol_len ?? 14);
+      setFieldValue("bt_liq_vol_mult", cfg.liq_vol_mult ?? 1.2);
+      setFieldValue("bt_liq_gk_on", String(cfg.liq_use_gk_filter ?? true));
+      setFieldValue("bt_liq_htf_on", String(cfg.liq_use_htf_bias ?? true));
+      setFieldValue("bt_liq_htf_ema", cfg.liq_htf_ema_len ?? 34);
+      setFieldValue("bt_liq_sr_on", String(cfg.liq_use_sr_filter ?? false));
+      setFieldValue("bt_liq_sr_pivot", cfg.liq_sr_pivot_span ?? 5);
+      setFieldValue("bt_liq_sr_min", cfg.liq_sr_min_swing_atr ?? 0.15);
+      setFieldValue("bt_liq_sr_near", cfg.liq_sr_near_atr ?? 1);
+      setFieldValue("bt_liq_min_score", cfg.liq_min_score ?? 40);
+      setFieldValue("bt_liq_atr_len", cfg.liq_atr_len ?? 14);
+      setFieldValue("bt_liq_sl_buffer", cfg.liq_sl_buffer_atr ?? 0.25);
+      setFieldValue("bt_liq_tp1", cfg.liq_tp1_mult ?? 1);
+      setFieldValue("bt_liq_tp2", cfg.liq_tp2_mult ?? 2);
+      setFieldValue("bt_liq_tp3", cfg.liq_tp3_mult ?? 3);
+      setFieldValue("bt_liq_trail", String(cfg.liq_use_trail ?? true));
+      setFieldValue("bt_liq_exit_tp3", String(cfg.liq_full_exit_tp3 ?? true));
+    }
+
+    function setBacktestPureLiquidityBalanced() {
+      setBacktestPureLiquidityFields({
+        pliq_swing_len: 21,
+        pliq_lookback_bars: 80,
+        pliq_sweep_mode: "Wicks + Outbreaks & Retest",
+        pliq_min_score: 50,
+        pliq_require_choch: true,
+        pliq_minor_len: 8,
+        pliq_confirm_window: 13,
+        pliq_use_volume: true,
+        pliq_vol_len: 21,
+        pliq_vol_mult: 1.5,
+        pliq_use_htf_bias: true,
+        pliq_htf_ema_len: 50,
+        pliq_risk_preset: "Balanced",
+        pliq_atr_len: 14,
+        pliq_sl_buffer_atr: 0.25,
+        pliq_tp1_mult: 1,
+        pliq_tp2_mult: 2,
+        pliq_tp3_mult: 3,
+      });
+      toast("Balanced Pure Liquidity settings applied", "success");
+    }
+
+    function setBacktestPureLiquidityFields(cfg = {}) {
+      setFieldValue("bt_pliq_swing", cfg.pliq_swing_len ?? 21);
+      setFieldValue("bt_pliq_lookback", cfg.pliq_lookback_bars ?? 80);
+      setFieldValue("bt_pliq_mode", cfg.pliq_sweep_mode || "Wicks + Outbreaks & Retest");
+      setFieldValue("bt_pliq_min_score", cfg.pliq_min_score ?? 50);
+      setFieldValue("bt_pliq_choch", String(cfg.pliq_require_choch ?? true));
+      setFieldValue("bt_pliq_minor", cfg.pliq_minor_len ?? 8);
+      setFieldValue("bt_pliq_confirm", cfg.pliq_confirm_window ?? 13);
+      setFieldValue("bt_pliq_use_volume", String(cfg.pliq_use_volume ?? true));
+      setFieldValue("bt_pliq_vol_len", cfg.pliq_vol_len ?? 21);
+      setFieldValue("bt_pliq_vol_mult", cfg.pliq_vol_mult ?? 1.5);
+      setFieldValue("bt_pliq_htf_on", String(cfg.pliq_use_htf_bias ?? true));
+      setFieldValue("bt_pliq_htf_ema", cfg.pliq_htf_ema_len ?? 50);
+      setFieldValue("bt_pliq_risk_preset", cfg.pliq_risk_preset || "Balanced");
+      setFieldValue("bt_pliq_atr_len", cfg.pliq_atr_len ?? 14);
+      setFieldValue("bt_pliq_sl_buffer", cfg.pliq_sl_buffer_atr ?? 0.25);
+      setFieldValue("bt_pliq_tp1", cfg.pliq_tp1_mult ?? 1);
+      setFieldValue("bt_pliq_tp2", cfg.pliq_tp2_mult ?? 2);
+      setFieldValue("bt_pliq_tp3", cfg.pliq_tp3_mult ?? 3);
+      setFieldValue("bt_pliq_trail", String(cfg.pliq_use_trail ?? true));
+      setFieldValue("bt_pliq_exit_tp3", String(cfg.pliq_full_exit_tp3 ?? true));
+    }
+
+    function setBacktestGvkFields(cfg = {}) {
+      setFieldValue("bt_gvk_len", cfg.gvk_gk_len ?? 200);
+      setFieldValue("bt_gvk_mult", cfg.gvk_gk_mult ?? 2);
+      setFieldValue("bt_gvk_gk_atr_len", cfg.gvk_gk_atr_len ?? 21);
+      setFieldValue("bt_gvk_confirm", cfg.gvk_gk_confirm_bars ?? 2);
+      setFieldValue("bt_gvk_entry_mode", cfg.gvk_entry_mode || "Trend Flip Only");
+      setFieldValue("bt_gvk_min_score", cfg.gvk_min_score ?? 4);
+      setFieldValue("bt_gvk_atr_len", cfg.gvk_atr_len ?? 14);
+      setFieldValue("bt_gvk_sl_mult", cfg.gvk_sl_mult ?? 1.2);
+      setFieldValue("bt_gvk_tp1", cfg.gvk_tp1_mult ?? 1);
+      setFieldValue("bt_gvk_tp2", cfg.gvk_tp2_mult ?? 2);
+      setFieldValue("bt_gvk_tp3", cfg.gvk_tp3_mult ?? 3);
+      setFieldValue("bt_gvk_trail", String(cfg.gvk_use_trail ?? true));
+      setFieldValue("bt_gvk_exit_tp3", String(cfg.gvk_full_exit_tp3 ?? true));
+      setFieldValue("bt_gvk_exit_reversal", String(cfg.gvk_exit_on_reversal ?? true));
+    }
+
+    function setBacktestGgcFields(cfg = {}) {
+      setFieldValue("bt_ggc_entry_mode", cfg.ggc_entry_mode || "Golden Cross Only");
+      setFieldValue("bt_ggc_require_obv", String(cfg.ggc_require_obv ?? true));
+      setFieldValue("bt_ggc_allow_shorts", String(cfg.ggc_allow_shorts ?? true));
+      setFieldValue("bt_ggc_obv_fast", cfg.ggc_obv_fast ?? 5);
+      setFieldValue("bt_ggc_obv_medium", cfg.ggc_obv_medium ?? 9);
+      setFieldValue("bt_ggc_obv_slow", cfg.ggc_obv_slow ?? 14);
+      setFieldValue("bt_ggc_obv_donchian", cfg.ggc_obv_donchian ?? 26);
+      setFieldValue("bt_ggc_obv_smoothing", cfg.ggc_obv_smoothing ?? 1);
+      setFieldValue("bt_ggc_atr_len", cfg.ggc_atr_len ?? 14);
+      setFieldValue("bt_ggc_sl_mult", cfg.ggc_sl_mult ?? 1.2);
+      setFieldValue("bt_ggc_tp1", cfg.ggc_tp1_mult ?? 1);
+      setFieldValue("bt_ggc_tp2", cfg.ggc_tp2_mult ?? 2);
+      setFieldValue("bt_ggc_tp3", cfg.ggc_tp3_mult ?? 3);
+      setFieldValue("bt_ggc_trail", String(cfg.ggc_use_trail ?? true));
+      setFieldValue("bt_ggc_exit_tp3", String(cfg.ggc_full_exit_tp3 ?? true));
+    }
+
+    function liquidityBacktestPayload() {
+      return {
+        liq_gk_len: parseInt(document.getElementById("bt_liq_gk_len").value || 100),
+        liq_gk_mult: parseFloat(document.getElementById("bt_liq_gk_mult").value || 1.8),
+        liq_gk_atr_len: parseInt(document.getElementById("bt_liq_gk_atr_len").value || 14),
+        liq_gk_confirm_bars: parseInt(document.getElementById("bt_liq_gk_confirm").value || 1),
+        liq_swing_len: parseInt(document.getElementById("bt_liq_swing").value || 13),
+        liq_lookback_bars: parseInt(document.getElementById("bt_liq_lookback").value || 50),
+        liq_minor_len: parseInt(document.getElementById("bt_liq_minor").value || 5),
+        liq_confirm_window: parseInt(document.getElementById("bt_liq_confirm").value || 8),
+        liq_require_choch: document.getElementById("bt_liq_choch").value === "true",
+        liq_use_volume: document.getElementById("bt_liq_use_volume").value === "true",
+        liq_vol_len: parseInt(document.getElementById("bt_liq_vol_len").value || 14),
+        liq_vol_mult: parseFloat(document.getElementById("bt_liq_vol_mult").value || 1.2),
+        liq_use_gk_filter: document.getElementById("bt_liq_gk_on").value === "true",
+        liq_use_htf_bias: document.getElementById("bt_liq_htf_on").value === "true",
+        liq_htf_ema_len: parseInt(document.getElementById("bt_liq_htf_ema").value || 34),
+        liq_use_sr_filter: document.getElementById("bt_liq_sr_on").value === "true",
+        liq_sr_pivot_span: parseInt(document.getElementById("bt_liq_sr_pivot").value || 5),
+        liq_sr_min_swing_atr: parseFloat(document.getElementById("bt_liq_sr_min").value || 0.15),
+        liq_sr_near_atr: parseFloat(document.getElementById("bt_liq_sr_near").value || 1),
+        liq_min_score: parseFloat(document.getElementById("bt_liq_min_score").value || 40),
+        liq_atr_len: parseInt(document.getElementById("bt_liq_atr_len").value || 14),
+        liq_sl_buffer_atr: parseFloat(document.getElementById("bt_liq_sl_buffer").value || 0.25),
+        liq_tp1_mult: parseFloat(document.getElementById("bt_liq_tp1").value || 1),
+        liq_tp2_mult: parseFloat(document.getElementById("bt_liq_tp2").value || 2),
+        liq_tp3_mult: parseFloat(document.getElementById("bt_liq_tp3").value || 3),
+        liq_use_trail: document.getElementById("bt_liq_trail").value === "true",
+        liq_full_exit_tp3: document.getElementById("bt_liq_exit_tp3").value === "true",
+      };
+    }
+
+    function pureLiquidityBacktestPayload() {
+      return {
+        pliq_swing_len: parseInt(document.getElementById("bt_pliq_swing").value || 21),
+        pliq_lookback_bars: parseInt(document.getElementById("bt_pliq_lookback").value || 80),
+        pliq_sweep_mode: document.getElementById("bt_pliq_mode").value,
+        pliq_min_score: parseFloat(document.getElementById("bt_pliq_min_score").value || 50),
+        pliq_require_choch: document.getElementById("bt_pliq_choch").value === "true",
+        pliq_minor_len: parseInt(document.getElementById("bt_pliq_minor").value || 8),
+        pliq_confirm_window: parseInt(document.getElementById("bt_pliq_confirm").value || 13),
+        pliq_use_volume: document.getElementById("bt_pliq_use_volume").value === "true",
+        pliq_vol_len: parseInt(document.getElementById("bt_pliq_vol_len").value || 21),
+        pliq_vol_mult: parseFloat(document.getElementById("bt_pliq_vol_mult").value || 1.5),
+        pliq_use_htf_bias: document.getElementById("bt_pliq_htf_on").value === "true",
+        pliq_htf_ema_len: parseInt(document.getElementById("bt_pliq_htf_ema").value || 50),
+        pliq_risk_preset: document.getElementById("bt_pliq_risk_preset").value,
+        pliq_atr_len: parseInt(document.getElementById("bt_pliq_atr_len").value || 14),
+        pliq_sl_buffer_atr: parseFloat(document.getElementById("bt_pliq_sl_buffer").value || 0.25),
+        pliq_tp1_mult: parseFloat(document.getElementById("bt_pliq_tp1").value || 1),
+        pliq_tp2_mult: parseFloat(document.getElementById("bt_pliq_tp2").value || 2),
+        pliq_tp3_mult: parseFloat(document.getElementById("bt_pliq_tp3").value || 3),
+        pliq_use_trail: document.getElementById("bt_pliq_trail").value === "true",
+        pliq_full_exit_tp3: document.getElementById("bt_pliq_exit_tp3").value === "true",
+      };
+    }
+
+    function gvkBacktestPayload() {
+      return {
+        gvk_gk_len: parseInt(document.getElementById("bt_gvk_len").value || 200),
+        gvk_gk_mult: parseFloat(document.getElementById("bt_gvk_mult").value || 2),
+        gvk_gk_atr_len: parseInt(document.getElementById("bt_gvk_gk_atr_len").value || 21),
+        gvk_gk_confirm_bars: parseInt(document.getElementById("bt_gvk_confirm").value || 2),
+        gvk_entry_mode: document.getElementById("bt_gvk_entry_mode").value,
+        gvk_min_score: parseFloat(document.getElementById("bt_gvk_min_score").value || 4),
+        gvk_atr_len: parseInt(document.getElementById("bt_gvk_atr_len").value || 14),
+        gvk_sl_mult: parseFloat(document.getElementById("bt_gvk_sl_mult").value || 1.2),
+        gvk_tp1_mult: parseFloat(document.getElementById("bt_gvk_tp1").value || 1),
+        gvk_tp2_mult: parseFloat(document.getElementById("bt_gvk_tp2").value || 2),
+        gvk_tp3_mult: parseFloat(document.getElementById("bt_gvk_tp3").value || 3),
+        gvk_use_trail: document.getElementById("bt_gvk_trail").value === "true",
+        gvk_full_exit_tp3: document.getElementById("bt_gvk_exit_tp3").value === "true",
+        gvk_exit_on_reversal: document.getElementById("bt_gvk_exit_reversal").value === "true",
+      };
+    }
+
+    function ggcBacktestPayload() {
+      return {
+        ggc_entry_mode: document.getElementById("bt_ggc_entry_mode").value,
+        ggc_require_obv: document.getElementById("bt_ggc_require_obv").value === "true",
+        ggc_allow_shorts: document.getElementById("bt_ggc_allow_shorts").value === "true",
+        ggc_obv_fast: parseInt(document.getElementById("bt_ggc_obv_fast").value || 5),
+        ggc_obv_medium: parseInt(document.getElementById("bt_ggc_obv_medium").value || 9),
+        ggc_obv_slow: parseInt(document.getElementById("bt_ggc_obv_slow").value || 14),
+        ggc_obv_donchian: parseInt(document.getElementById("bt_ggc_obv_donchian").value || 26),
+        ggc_obv_smoothing: parseInt(document.getElementById("bt_ggc_obv_smoothing").value || 1),
+        ggc_atr_len: parseInt(document.getElementById("bt_ggc_atr_len").value || 14),
+        ggc_sl_mult: parseFloat(document.getElementById("bt_ggc_sl_mult").value || 1.2),
+        ggc_tp1_mult: parseFloat(document.getElementById("bt_ggc_tp1").value || 1),
+        ggc_tp2_mult: parseFloat(document.getElementById("bt_ggc_tp2").value || 2),
+        ggc_tp3_mult: parseFloat(document.getElementById("bt_ggc_tp3").value || 3),
+        ggc_use_trail: document.getElementById("bt_ggc_trail").value === "true",
+        ggc_full_exit_tp3: document.getElementById("bt_ggc_exit_tp3").value === "true",
+      };
+    }
+
+    function toggleBacktestStrategyPanels() {
+      const strategy = document.getElementById("bt_strategy").value;
+      const ggc = strategy === "GMMA_GOLD_CROSS";
+      const liq = strategy === "LIQUIDITY_SWEEP";
+      const pliq = strategy === "PURE_LIQUIDITY_SWEEP";
+      const gvk = strategy === "GVK_TREND";
+      document.getElementById("bt_ggc_panel").classList.toggle("hidden", !ggc);
+      document.getElementById("bt_liq_panel").classList.toggle("hidden", !liq);
+      document.getElementById("bt_pliq_panel").classList.toggle("hidden", !pliq);
+      document.getElementById("bt_gvk_panel").classList.toggle("hidden", !gvk);
+    }
+
+    function backtestPayloadFromForm() {
+      const name = document.getElementById("bt_config").value;
+      const saved = name ? (BACKTEST_CONFIGS[name] || {}) : {};
+      const strategy = document.getElementById("bt_strategy").value;
+      const payload = {
+        ...saved,
+        user_id: USER_ID,
+        symbol: document.getElementById("bt_symbol").value.trim().toUpperCase(),
+        strategy_mode: strategy,
+        strategy_timeframe_minutes: parseInt(document.getElementById("bt_timeframe").value || 5),
+        from_date: document.getElementById("bt_from").value,
+        to_date: document.getElementById("bt_to").value,
+        qty: parseInt(document.getElementById("bt_qty").value || 1),
+      };
+      if (strategy === "LIQUIDITY_SWEEP") {
+        Object.assign(payload, liquidityBacktestPayload());
+      }
+      if (strategy === "GMMA_GOLD_CROSS") {
+        Object.assign(payload, ggcBacktestPayload());
+      }
+      if (strategy === "PURE_LIQUIDITY_SWEEP") {
+        Object.assign(payload, pureLiquidityBacktestPayload());
+      }
+      if (strategy === "GVK_TREND") {
+        Object.assign(payload, gvkBacktestPayload());
+      }
+      return payload;
+    }
+
+    function renderBacktest(result) {
+      const summary = document.getElementById("bt_summary");
+      const paramsBox = document.getElementById("bt_params");
+      const body = document.getElementById("bt_body");
+      const card = (label, value, color = "text-white") => `
+        <div class="rounded-xl bg-slate-900/60 border border-white/10 p-3">
+          <div class="text-[9px] uppercase tracking-widest text-slate-500">${label}</div>
+          <div class="text-lg font-black ${color}">${value}</div>
+        </div>`;
+      const pnlColor = Number(result.net_pnl || 0) >= 0 ? "text-emerald-300" : "text-rose-300";
+      summary.innerHTML = [
+        card("Trades", result.total_trades ?? 0),
+        card("Win Rate", `${result.win_rate ?? 0}%`),
+        card("Net P&L", `₹${Number(result.net_pnl || 0).toFixed(2)}`, pnlColor),
+        card("Profit Factor", result.profit_factor ?? "--"),
+        card("Candles", result.candles ?? 0),
+        card("Warmup", result.warmup_candles ?? 0),
+        card("In Range", result.in_range_candles ?? 0),
+        card("Required", result.required_candles ?? "--"),
+      ].join("");
+
+      const params = result.parameters || {};
+      const paramPairs = Object.keys(params).map(k => `<span><span class="text-slate-500">${k}:</span> <span class="text-cyan-200">${params[k]}</span></span>`);
+      paramsBox.classList.toggle("hidden", paramPairs.length === 0);
+      paramsBox.innerHTML = `
+        <div class="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Strategy Parameters</div>
+        <div class="flex flex-wrap gap-x-4 gap-y-1">${paramPairs.join("")}</div>
+        <div class="mt-2 text-[10px] text-slate-500">Returned candles: ${result.first_candle_time || "--"} to ${result.last_candle_time || "--"}</div>
+      `;
+
+      const trades = result.trades || [];
+      if (!trades.length) {
+        body.innerHTML = `<tr><td colspan="8" class="px-3 py-6 text-center text-slate-500 italic">No trades found for this period/settings.</td></tr>`;
+      } else {
+        body.innerHTML = trades.map(t => {
+        const p = Number(t.pnl || 0);
+        const cls = p >= 0 ? "text-emerald-300" : "text-rose-300";
+        return `
+          <tr class="border-b border-white/5">
+            <td class="px-3 py-3 text-slate-300 font-mono">${String(t.entry_time || "").replace("T", " ").slice(0, 16)}</td>
+            <td class="px-3 py-3"><span class="${t.side === 'BUY' ? 'text-emerald-300' : 'text-rose-300'} font-bold">${t.side}</span></td>
+            <td class="px-3 py-3 text-right">${t.qty}</td>
+            <td class="px-3 py-3 text-right font-mono">${Number(t.entry_price || 0).toFixed(2)}</td>
+            <td class="px-3 py-3 text-right font-mono">${Number(t.exit_price || 0).toFixed(2)}</td>
+            <td class="px-3 py-3 text-slate-300">${t.exit_reason || "--"}</td>
+            <td class="px-3 py-3 text-right font-black ${cls}">₹${p.toFixed(2)}</td>
+            <td class="px-3 py-3 text-right text-cyan-300">${t.grade || "--"}</td>
+          </tr>`;
+        }).join("");
+      }
+
+      renderBacktestDetails(result.detail_report || []);
+    }
+
+    function formatChecks(row) {
+      const checks = row.checks || {};
+      const parts = [];
+      const addGroup = (label, obj) => {
+        if (!obj) return;
+        const items = Object.keys(obj).map(k => {
+          const ok = !!obj[k];
+          return `<span class="${ok ? 'text-emerald-300' : 'text-rose-300'}">${k}:${ok ? 'PASS' : 'FAIL'}</span>`;
+        });
+        if (items.length) parts.push(`<span class="text-slate-500">${label}</span> ${items.join(" ")}`);
+      };
+      addGroup("B", checks.bull);
+      addGroup("S", checks.bear);
+      const scores = [];
+      if (row.bull_score !== null && row.bull_score !== undefined) scores.push(`bull=${row.bull_score}`);
+      if (row.bear_score !== null && row.bear_score !== undefined) scores.push(`bear=${row.bear_score}`);
+      if (row.score !== null && row.score !== undefined) scores.push(`score=${row.score}/${row.max_score ?? ''}`);
+      if (row.adx !== null && row.adx !== undefined) scores.push(`adx=${row.adx}`);
+      if (row.vwap !== null && row.vwap !== undefined) scores.push(`vwap=${row.vwap}`);
+      if (row.required !== null && row.required !== undefined) scores.push(`required=${row.required}`);
+      if (row.received !== null && row.received !== undefined) scores.push(`received=${row.received}`);
+      return `${parts.join("<br>")}${scores.length ? `<div class="text-slate-400 mt-1">${scores.join(" | ")}</div>` : ""}` || "--";
+    }
+
+    function formatIndicators(row) {
+      const ind = row.indicators || {};
+      const keys = [
+        "gmma_s1_ema3", "gmma_s2_ema5", "gmma_s3_ema8", "gmma_s4_ema10", "gmma_s5_ema12", "gmma_s6_ema15",
+        "gmma_l1_ema30", "gmma_l2_ema35", "gmma_l3_ema40", "gmma_l4_ema45", "gmma_l5_ema50", "gmma_l6_ema60",
+        "ggc_s1_ema", "ggc_s2_ema", "ggc_s3_ema", "ggc_s4_ema", "ggc_s5_ema", "ggc_s6_ema",
+        "ggc_l1_ema", "ggc_l2_ema", "ggc_l3_ema", "ggc_l4_ema", "ggc_l5_ema", "ggc_l6_ema",
+        "ggc_gc", "ggc_dc", "ggc_gc_regime", "ggc_dc_regime", "ggc_cross_count_first5", "ggc_s6_cross",
+        "obv", "obv_fast_ema", "obv_medium_ema", "obv_slow_ema", "obv_donchian_baseline",
+        "obv_bull", "obv_bear",
+        "vwap", "adx", "plus_di", "minus_di", "atr",
+        "gmma_gc", "gmma_dc", "gmma_cross_count_first5", "gmma_s6_cross",
+        "pure_bull_level", "pure_bear_level", "pure_bull_kind", "pure_bear_kind",
+        "pure_bull_score", "pure_bear_score", "sweep_mode", "volume_sma", "volume_ratio",
+        "htf_ema", "last_minor_high", "last_minor_low", "pending_dir", "pending_level",
+        "bull_wick_comp", "bull_reclaim_comp", "bull_close_position_comp", "bull_volume_comp", "bull_htf_comp",
+        "bear_wick_comp", "bear_reclaim_comp", "bear_close_position_comp", "bear_volume_comp", "bear_htf_comp"
+        , "gvk_zl", "gvk_upper", "gvk_lower", "gvk_trend", "gvk_prev_trend",
+        "gvk_flip", "gvk_bull_confirm", "gvk_bear_confirm", "gvk_atr_band", "entry_mode"
+      ];
+      const parts = keys
+        .filter(k => ind[k] !== null && ind[k] !== undefined && ind[k] !== "")
+        .map(k => `<span><span class="text-slate-500">${k}:</span> <span class="text-cyan-200">${ind[k]}</span></span>`);
+      return parts.length ? `<div class="grid grid-cols-2 gap-x-3 gap-y-0.5">${parts.join("")}</div>` : "--";
+    }
+
+    function renderBacktestDetails(rows) {
+      const body = document.getElementById("bt_detail_body");
+      const count = document.getElementById("bt_detail_count");
+      count.textContent = `${rows.length} rows`;
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="11" class="px-3 py-6 text-center text-slate-500 italic">No candle diagnostics returned.</td></tr>`;
+        return;
+      }
+      body.innerHTML = rows.map(row => {
+        const status = row.status || "";
+        const statusClass =
+          status === "QUALIFIED" ? "text-emerald-300" :
+          status === "FAILED" ? "text-rose-300" :
+          status === "EXIT" ? "text-amber-300" :
+          status === "WARMUP" ? "text-slate-500" :
+          status === "OUT_OF_RANGE" ? "text-slate-500" :
+          status === "IN_POSITION" ? "text-blue-300" : "text-slate-300";
+        return `
+          <tr class="border-b border-white/5 align-top">
+            <td class="px-3 py-2 font-mono text-slate-300 whitespace-nowrap">${String(row.time || "").replace("T", " ").slice(0, 16)}</td>
+            <td class="px-3 py-2 text-right font-mono">${Number(row.open || 0).toFixed(2)}</td>
+            <td class="px-3 py-2 text-right font-mono">${Number(row.high || 0).toFixed(2)}</td>
+            <td class="px-3 py-2 text-right font-mono">${Number(row.low || 0).toFixed(2)}</td>
+            <td class="px-3 py-2 text-right font-mono">${Number(row.close || 0).toFixed(2)}</td>
+            <td class="px-3 py-2 text-right font-mono">${Number(row.volume || 0).toFixed(0)}</td>
+            <td class="px-3 py-2 font-bold ${statusClass}">${status}</td>
+            <td class="px-3 py-2 text-slate-300 max-w-[260px]">${row.reason || "--"}</td>
+            <td class="px-3 py-2 min-w-[360px]">${formatChecks(row)}</td>
+            <td class="px-3 py-2 min-w-[560px]">${formatIndicators(row)}</td>
+            <td class="px-3 py-2 text-cyan-300">${row.action || "--"}</td>
+          </tr>`;
+      }).join("");
+    }
+
+    async function runBacktest() {
+      const status = document.getElementById("bt_status");
+      const payload = backtestPayloadFromForm();
+      if (!payload.symbol) { toast("Backtest symbol is required", "error"); return; }
+      if (!payload.from_date || !payload.to_date) { toast("Backtest date range is required", "error"); return; }
+      status.textContent = "Fetching warmed candles and running simulation...";
+      try {
+        const r = await fetch("/api/backtest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const d = await r.json();
+        if (d.error) {
+          const msg = d.message || d.error;
+          document.getElementById("bt_summary").innerHTML = "";
+          document.getElementById("bt_params").classList.add("hidden");
+          document.getElementById("bt_body").innerHTML = `<tr><td colspan="8" class="px-3 py-6 text-center text-rose-300 italic">${msg}</td></tr>`;
+          document.getElementById("bt_detail_count").textContent = "0 rows";
+          document.getElementById("bt_detail_body").innerHTML = `<tr><td colspan="11" class="px-3 py-6 text-center text-rose-300 italic">${msg}</td></tr>`;
+          throw d.error;
+        }
+        renderBacktest(d.result || {});
+        status.textContent = `Done: ${d.result.total_trades || 0} trades, net P&L ₹${Number(d.result.net_pnl || 0).toFixed(2)}`;
+      } catch (e) {
+        status.textContent = "Backtest failed.";
+        toast(String(e), "error");
       }
     }
 
@@ -2072,6 +3155,9 @@
             if (livePos.status === 'EXIT_CONDITIONS_MET') {
               statusLabel = 'CONDITIONS MET';
               statusReason = livePos.exit_reason || 'Exit Triggered';
+            } else if (livePos.status === 'PENDING_ENTRY') {
+              statusLabel = 'PENDING ENTRY';
+              statusReason = livePos.pending_reason || livePos.order_status || 'Waiting for broker execution';
             } else if (livePos.status === 'EXITING') {
               statusLabel = 'EXITING';
               statusReason = livePos.exit_reason;
@@ -2095,6 +3181,7 @@
 
             switch (s) {
               case 'ENTERED': return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+              case 'PENDING ENTRY': return 'bg-amber-500/10 text-amber-300 border border-amber-500/30 animate-pulse';
               case 'SKIPPED': return 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20';
               case 'ERROR': return 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
               case 'CONDITIONS MET': return 'bg-gradient-to-r from-orange-500/20 to-amber-500/20 text-orange-200 border border-orange-500/40 shadow-[0_0_10px_rgba(251,146,60,0.3)] animate-pulse';
@@ -2136,7 +3223,7 @@
           let tslVal = null;
           if (p) {
             let tslPrice = 0.0;
-            if (p.strategy_mode === 'PRECISION_SNIPER') {
+            if (p.strategy_mode === 'PRECISION_SNIPER' || p.strategy_mode === 'GMMA_OBV' || p.strategy_mode === 'GMMA_GOLD_CROSS' || p.strategy_mode === 'LIQUIDITY_SWEEP' || p.strategy_mode === 'PURE_LIQUIDITY_SWEEP' || p.strategy_mode === 'GVK_TREND') {
               tslPrice = Number(p.trail_price || p.sl_price || 0);
             }
             const tslPct = Number(p.tsl_pct || 0);
@@ -2263,7 +3350,7 @@
     async function refreshPositions() {
       const d = await (await fetch(`/api/positions?user_id=${USER_ID}`)).json();
       const pos = d.positions || [];
-      const activePos = pos.filter(p => ['OPEN', 'EXITING', 'EXIT_CONDITIONS_MET', 'ERROR'].includes(p.status));
+      const activePos = pos.filter(p => ['PENDING_ENTRY', 'OPEN', 'EXITING', 'EXIT_CONDITIONS_MET', 'ERROR'].includes(p.status));
       activePos.sort((a, b) => a.symbol.localeCompare(b.symbol));
       POS_MAP = {};
       pos.forEach(p => {
@@ -2456,7 +3543,7 @@
               }
 
               // Render only OPEN positions
-              const activePos = Object.values(POS_MAP).filter(p => p.status === 'OPEN');
+              const activePos = Object.values(POS_MAP).filter(p => ['PENDING_ENTRY', 'OPEN', 'EXITING', 'EXIT_CONDITIONS_MET', 'ERROR'].includes(p.status));
               // Sort alphabetically by symbol
               activePos.sort((a, b) => a.symbol.localeCompare(b.symbol));
 
@@ -2502,6 +3589,13 @@
       refreshZ();
       // checkAutoSqOff(); // Removed as we switched to manual button
       setInterval(refreshZ, 5000);
+      const today = new Date();
+      const weekAgo = new Date();
+      weekAgo.setDate(today.getDate() - 7);
+      const fmtDate = (d) => d.toISOString().slice(0, 10);
+      if (document.getElementById("bt_to")) document.getElementById("bt_to").value = fmtDate(today);
+      if (document.getElementById("bt_from")) document.getElementById("bt_from").value = fmtDate(weekAgo);
+      loadCfgList();
       loadAlerts();
       refreshPositions();
       startWS();
