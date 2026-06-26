@@ -1537,6 +1537,31 @@
             <p class="text-[10px] text-slate-500 mt-2">Dhan orders are confirmed from order updates/order book. If still pending, the app cancels and retries before marking entry live.</p>
           </div>
 
+          <div class="col-span-2 border-t border-fuchsia-500/20 pt-3 mt-1">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-bold text-fuchsia-300">Pyramiding</h4>
+              <span class="text-[9px] text-slate-500">Adds same initial quantity on each configured move</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="block text-[10px] text-slate-400 uppercase mb-1">Pyramiding</label>
+                <select id="cfg_pyramid_on" class="input-field">
+                  <option value="false">Off</option>
+                  <option value="true">On</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] text-slate-400 uppercase mb-1">Step %</label>
+                <input id="cfg_pyramid_step" type="number" min="0.05" max="20" step="0.05" class="input-field" value="0.8">
+              </div>
+              <div>
+                <label class="block text-[10px] text-slate-400 uppercase mb-1">Max Adds</label>
+                <input id="cfg_pyramid_max" type="number" min="0" max="20" step="1" class="input-field" value="3">
+              </div>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-2">For BUY, add after every Step% rise from last add price. For SELL, add after every Step% fall. Exit sends full current quantity.</p>
+          </div>
+
           <!-- Classic Risk Management -->
           <div id="classicRiskPanel" class="col-span-2 border-t border-white/5 pt-2 mt-1">
             <h4 class="text-xs font-bold text-white mb-2">Risk Management (MIS Only)</h4>
@@ -2171,6 +2196,11 @@
       document.getElementById("pureLiquiditySweepPanel").classList.toggle("hidden", !pliq);
       document.getElementById("gvkTrendPanel").classList.toggle("hidden", !gvk);
       document.getElementById("classicRiskPanel").classList.toggle("hidden", precision || gmma || ggc || liq || pliq || gvk);
+      const liveTf = document.getElementById("cfg_timeframe");
+      if (liveTf) {
+        if (ggc) liveTf.value = "5";
+        liveTf.disabled = ggc;
+      }
     }
 
     function togglePartialProfitFields() {
@@ -2261,6 +2291,7 @@
               <span>TSL: <span class="text-blue-300">${c.trailing_sl_pct}%</span></span>
               <span>Mode: <span class="text-slate-200">${c.tsl_stepwise ? 'STEP' : 'CONT'}</span></span>
               <span>Limit: <span class="text-yellow-200">${c.trade_limit_per_day}/day</span></span>
+              ${c.pyramid_enabled ? `<span>Pyramid: <span class="text-fuchsia-300">${c.pyramid_step_pct ?? 0.8}% x ${c.pyramid_max_adds ?? 3}</span></span>` : ''}
               ${c.custom_partial_profit_enabled ? `<span>Partial: <span class="text-emerald-300">${c.custom_partial_tp1_pct ?? 50}%/${c.custom_partial_tp2_pct ?? 25}%/${c.custom_partial_tp3_pct ?? 25}%</span></span>` : ''}
               ${c.sector_filter_on ? `<span>Sector: <span class="text-fuchsia-300">Top ${c.top_n_sector}</span></span>` : ''}
             </div>
@@ -2305,6 +2336,9 @@
         "cfg_entry_end": c.entry_end_time || "15:15",
         "cfg_order_timeout": c.order_confirm_timeout_sec ?? c.execution_confirm_timeout_sec ?? 1.5,
         "cfg_order_retries": c.order_pending_retry_count ?? c.execution_retry_count ?? 1,
+        "cfg_pyramid_on": String(c.pyramid_enabled ?? false),
+        "cfg_pyramid_step": c.pyramid_step_pct ?? 0.8,
+        "cfg_pyramid_max": c.pyramid_max_adds ?? 3,
         "cfg_strategy_mode": c.strategy_mode || "CLASSIC",
         "cfg_timeframe": c.strategy_timeframe_minutes || c.timeframe_minutes || 5,
         "cfg_custom_preset": c.custom_preset || "Auto",
@@ -2446,6 +2480,9 @@
         strategy_timeframe_minutes: parseInt(document.getElementById("cfg_timeframe").value || 5),
         order_confirm_timeout_sec: parseFloat(document.getElementById("cfg_order_timeout").value || 1.5),
         order_pending_retry_count: parseInt(document.getElementById("cfg_order_retries").value || 1),
+        pyramid_enabled: document.getElementById("cfg_pyramid_on").value === "true",
+        pyramid_step_pct: parseFloat(document.getElementById("cfg_pyramid_step").value || 0.8),
+        pyramid_max_adds: parseInt(document.getElementById("cfg_pyramid_max").value || 3),
         custom_preset: document.getElementById("cfg_custom_preset").value,
         custom_htf_minutes: parseInt(document.getElementById("cfg_custom_htf").value || 5),
         custom_grade_filter: document.getElementById("cfg_custom_grade").value,
@@ -2556,6 +2593,10 @@
       };
 
       if (!payload.alert_name) { toast("Alert Name is required", 'error'); return; }
+      if (payload.pyramid_enabled && !(payload.pyramid_step_pct >= 0.05 && payload.pyramid_step_pct <= 20 && payload.pyramid_max_adds >= 1 && payload.pyramid_max_adds <= 20)) {
+        toast("Pyramiding requires Step % between 0.05 and 20 and Max Adds between 1 and 20", "error");
+        return;
+      }
       if (payload.strategy_mode === "GMMA_OBV" && !(payload.gmma_tp1_mult < payload.gmma_tp2_mult && payload.gmma_tp2_mult < payload.gmma_tp3_mult)) {
         toast("GMMA targets must be ordered TP1 < TP2 < TP3", "error");
         return;
@@ -2897,6 +2938,11 @@
       document.getElementById("bt_liq_panel").classList.toggle("hidden", !liq);
       document.getElementById("bt_pliq_panel").classList.toggle("hidden", !pliq);
       document.getElementById("bt_gvk_panel").classList.toggle("hidden", !gvk);
+      const btTf = document.getElementById("bt_timeframe");
+      if (btTf) {
+        if (ggc) btTf.value = "5";
+        btTf.disabled = ggc;
+      }
     }
 
     function backtestPayloadFromForm() {
@@ -3210,6 +3256,9 @@
               ? `${p.qty}/${p.initial_qty}`
               : p.qty)
             : null;
+          const pyramidInfo = p && p.pyramid_enabled
+            ? `Adds ${Number(p.pyramid_add_count || 0)}/${Number(p.pyramid_max_adds || 0)} @ ${Number(p.pyramid_step_pct || 0).toFixed(2)}%`
+            : '';
           const entry = p ? Number(p.entry_price || 0).toFixed(2) : null;
           const tgt = p ? Number(p.target_price || 0).toFixed(2) : null;
           const sl = p ? Number(p.sl_price || 0).toFixed(2) : null;
@@ -3270,7 +3319,10 @@
               <td class="px-3 py-3 text-center">
                 ${sideLabel ? `<span class="px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-[0.2em] ${sideLabel === 'BUY' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">${sideLabel}</span>` : '<span class="text-slate-600">--</span>'}
               </td>
-              <td class="px-3 py-3 text-right ${p ? 'text-cyan-400 font-bold' : 'text-slate-600'}">${qty ?? '--'}</td>
+              <td class="px-3 py-3 text-right ${p ? 'text-cyan-400 font-bold' : 'text-slate-600'}">
+                <div>${qty ?? '--'}</div>
+                ${pyramidInfo ? `<div class="text-[9px] text-fuchsia-300 font-normal">${pyramidInfo}</div>` : ''}
+              </td>
               <td class="px-3 py-3 text-right ${p ? 'text-slate-200' : 'text-slate-300'}">${entry ?? '--'}</td>
               <td class="px-3 py-3 text-right ${p ? 'text-emerald-400 font-bold' : 'text-slate-600'}">${tgt ?? '--'}</td>
               <td class="px-3 py-3 text-right ${p ? 'text-rose-400 font-bold' : 'text-slate-600'}">${sl ?? '--'}</td>

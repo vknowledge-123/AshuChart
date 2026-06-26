@@ -31,6 +31,7 @@ class DhanInstrumentRegistry:
     def __init__(self) -> None:
         self.symbol_to_security: Dict[str, str] = {}
         self.security_to_symbol: Dict[str, str] = {}
+        self.security_to_feed_segment: Dict[str, int] = {}
         self._master_frame: Optional[pd.DataFrame] = None
         self._lock = asyncio.Lock()
         self.loaded_at: Optional[datetime] = None
@@ -74,11 +75,13 @@ class DhanInstrumentRegistry:
                     if symbol and security_id:
                         symbol_map[symbol] = security_id
                         security_map[security_id] = symbol
+                        self.security_to_feed_segment[security_id] = MarketFeed.NSE
                 if not symbol_map:
                     raise RuntimeError("DHAN_SCRIP_MASTER_EMPTY")
                 for symbol, security_id in self.INDEX_SECURITY_IDS.items():
                     symbol_map[symbol] = security_id
                     security_map[security_id] = self.INDEX_DISPLAY.get(security_id, symbol)
+                    self.security_to_feed_segment[security_id] = MarketFeed.IDX
                 self.symbol_to_security = symbol_map
                 self.security_to_symbol = security_map
                 self.loaded_at = datetime.now()
@@ -173,6 +176,7 @@ class DhanInstrumentRegistry:
         trading_symbol = norm_symbol(_value(row, "SEM_TRADING_SYMBOL", "TRADING_SYMBOL"))
         if not security_id or not trading_symbol:
             return None
+        self.register_instrument(trading_symbol, security_id, MarketFeed.NSE_FNO)
         return {
             "security_id": security_id,
             "trading_symbol": trading_symbol,
@@ -181,6 +185,27 @@ class DhanInstrumentRegistry:
             "strike": float(row.get("_strike", atm_strike) or atm_strike),
             "expiry": str(row.get("_expiry") or ""),
         }
+
+    def register_instrument(self, symbol: str, security_id: str, feed_segment: Optional[int] = None) -> None:
+        normalized = norm_symbol(symbol)
+        security_id = str(security_id or "").strip()
+        if not normalized or not security_id:
+            return
+        self.symbol_to_security[normalized] = security_id
+        self.security_to_symbol[security_id] = normalized
+        self.security_to_feed_segment[security_id] = feed_segment or MarketFeed.NSE
+
+    def feed_segment(self, security_id: Any) -> int:
+        return self.security_to_feed_segment.get(str(security_id), MarketFeed.NSE)
+
+    def exchange_segment_for_symbol(self, symbol: str, dhan: Any) -> Any:
+        normalized = norm_symbol(symbol)
+        if self.is_index_symbol(normalized):
+            return getattr(dhan, "INDEX", "IDX_I")
+        security_id = self.symbol_to_security.get(normalized)
+        if security_id and self.feed_segment(security_id) == MarketFeed.NSE_FNO:
+            return getattr(dhan, "FNO", "NSE_FNO")
+        return dhan.NSE
 
     def symbol(self, security_id: Any) -> str:
         return self.security_to_symbol.get(str(security_id), self.INDEX_DISPLAY.get(str(security_id), ""))
@@ -207,8 +232,23 @@ def order_id_from_response(response: Any) -> str:
         value = data.get("orderId") or data.get("order_id") or data.get("orderNo")
         if value:
             return str(value)
+        message = (
+            data.get("errorMessage")
+            or data.get("remarks")
+            or data.get("remark")
+            or data.get("message")
+            or data.get("error")
+        )
+        if message:
+            raise RuntimeError(str(message))
     if isinstance(response, dict):
-        message = response.get("errorMessage") or response.get("message")
+        message = (
+            response.get("errorMessage")
+            or response.get("remarks")
+            or response.get("remark")
+            or response.get("message")
+            or response.get("error")
+        )
         if message:
             raise RuntimeError(str(message))
     if isinstance(response, (str, int)):
@@ -379,7 +419,7 @@ class DhanFeedService:
     async def start(self, security_ids: Iterable[str]) -> None:
         self.security_ids.update(str(item) for item in security_ids if item)
         instruments = [
-            (MarketFeed.NSE, security_id, MarketFeed.Full)
+            (DHAN_INSTRUMENTS.feed_segment(security_id), security_id, MarketFeed.Full)
             for security_id in sorted(self.security_ids)
         ]
 
@@ -431,7 +471,7 @@ class DhanFeedService:
         self.security_ids.update(new_ids)
         if self.feed:
             self.feed.subscribe_symbols(
-                [(MarketFeed.NSE, security_id, MarketFeed.Full) for security_id in new_ids]
+                [(DHAN_INSTRUMENTS.feed_segment(security_id), security_id, MarketFeed.Full) for security_id in new_ids]
             )
 
     async def stop(self) -> None:

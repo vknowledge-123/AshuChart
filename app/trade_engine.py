@@ -13,7 +13,7 @@ from dataclasses import dataclass, asdict
 from typing import Any, Dict, Optional, Literal, List, Tuple, Set
 from dataclasses import fields as _dc_fields
 from kiteconnect import KiteConnect  # type: ignore
-from dhanhq import dhanhq  # type: ignore
+from dhanhq import MarketFeed, dhanhq  # type: ignore
 
 # Keep dependencies intact (same modules you already use)
 from .redis_store import RedisStore, norm_alert_name, norm_symbol
@@ -219,6 +219,52 @@ def _normalize_order_snapshot(data: Any) -> Dict[str, Any]:
     }
 
 
+def _extract_ltp_from_response(response: Any) -> float:
+    data = response_data(response)
+    stack = [data]
+    while stack:
+        value = stack.pop()
+        if isinstance(value, dict):
+            for key in (
+                "last_price",
+                "lastPrice",
+                "last_traded_price",
+                "lastTradedPrice",
+                "ltp",
+                "LTP",
+                "close",
+                "Close",
+            ):
+                if key in value:
+                    try:
+                        price = float(value[key] or 0)
+                    except Exception:
+                        price = 0.0
+                    if price > 0:
+                        return price
+            stack.extend(value.values())
+        elif isinstance(value, list):
+            stack.extend(value)
+    return 0.0
+
+
+def _is_broker_validation_error(exc: Any) -> bool:
+    text = str(exc or "").upper()
+    markers = (
+        "INTRADAY",
+        "NOT ALLOWED",
+        "ORDER_REJECTED",
+        "ORDER_CANCELLED",
+        "ORDER_NOT_EXECUTED",
+        "NO_LTP",
+        "SECURITY_ID",
+        "INSUFFICIENT",
+        "MARGIN",
+        "RMS",
+    )
+    return any(marker in text for marker in markers)
+
+
 def _stepwise_anchor_long(entry: float, highest: float, step_pct: float) -> float:
     """
     Quantize the trailing anchor in steps of `step_pct` moves from entry.
@@ -322,6 +368,9 @@ class AlertConfig:
     # entry time window (IST format HH:MM)
     entry_start_time: str = "09:15"
     entry_end_time: str = "15:15"
+    pyramid_enabled: bool = False
+    pyramid_step_pct: float = 0.8
+    pyramid_max_adds: int = 3
     strategy_mode: Literal["CLASSIC", "PRECISION_SNIPER", "GMMA_OBV", "GMMA_GOLD_CROSS", "LIQUIDITY_SWEEP", "PURE_LIQUIDITY_SWEEP", "GVK_TREND"] = "CLASSIC"
     custom_settings: Dict[str, Any] = None  # type: ignore[assignment]
 
@@ -364,6 +413,9 @@ class AlertConfig:
             top_n_sector=int(d.get("top_n_sector", 2) or 2),
             entry_start_time=str(d.get("entry_start_time", "09:15") or "09:15").strip(),
             entry_end_time=str(d.get("entry_end_time", "15:15") or "15:15").strip(),
+            pyramid_enabled=_as_bool(d.get("pyramid_enabled"), False),
+            pyramid_step_pct=float(d.get("pyramid_step_pct", 0.8) or 0.0),
+            pyramid_max_adds=int(d.get("pyramid_max_adds", 3) or 0),
             strategy_mode=strategy_mode,  # type: ignore[arg-type]
             custom_settings=dict(d),
         )
@@ -433,6 +485,14 @@ class Position:
     custom_use_trail: bool = True
     custom_full_exit_tp3: bool = True
     initial_qty: int = 0
+    pyramid_enabled: bool = False
+    pyramid_step_pct: float = 0.8
+    pyramid_base_qty: int = 0
+    pyramid_add_count: int = 0
+    pyramid_max_adds: int = 0
+    pyramid_last_add_price: float = 0.0
+    pyramid_last_order_id: str = ""
+    pyramid_last_error: str = ""
     custom_partial_profit_enabled: bool = False
     partial_tp1_pct: float = 50.0
     partial_tp2_pct: float = 25.0
@@ -596,6 +656,7 @@ class TradeEngine:
         self._custom_reversal_last_candle: Dict[str, str] = {}
         self.custom_reversal_check_interval_sec: float = 20.0
         self._partial_inflight: Dict[Tuple[str, str], bool] = {}
+        self._pyramid_inflight: Dict[str, bool] = {}
 
         # MTM-based daily P&L guard
         self._pnl_exit_task: Optional["asyncio.Task[None]"] = None
@@ -790,6 +851,7 @@ class TradeEngine:
                 security_id = str(contract["security_id"])
                 exchange_segment = getattr(self.dhan, "FNO", "NSE_FNO")
                 order_symbol = str(contract["trading_symbol"])
+                DHAN_INSTRUMENTS.register_instrument(order_symbol, security_id, MarketFeed.NSE_FNO)
                 side = "BUY"
                 option_ltp = 0.0
                 try:
@@ -797,22 +859,7 @@ class TradeEngine:
                         self.dhan.ohlc_data,
                         {exchange_segment: [int(security_id)]},
                     )
-                    data = response_data(quote)
-                    stack = [data]
-                    while stack:
-                        value = stack.pop()
-                        if isinstance(value, dict):
-                            found_ltp = False
-                            for key in ("last_price", "lastPrice", "ltp", "LTP"):
-                                if key in value and float(value[key] or 0) > 0:
-                                    option_ltp = float(value[key])
-                                    found_ltp = True
-                                    break
-                            if found_ltp:
-                                break
-                            stack.extend(value.values())
-                        elif isinstance(value, list):
-                            stack.extend(value)
+                    option_ltp = _extract_ltp_from_response(quote)
                 except Exception:
                     option_ltp = 0.0
             if not security_id:
@@ -1056,22 +1103,14 @@ class TradeEngine:
                     try:
                         security_id = await DHAN_INSTRUMENTS.security_id(symbol)
                         if security_id:
-                            segment = getattr(self.dhan, "INDEX", "IDX_I") if DHAN_INSTRUMENTS.is_index_symbol(symbol) else self.dhan.NSE
+                            segment = DHAN_INSTRUMENTS.exchange_segment_for_symbol(symbol, self.dhan)
                             response = await self.market_data_worker.submit(
                                 self.dhan.ohlc_data,
                                 {segment: [int(security_id)]},
                             )
-                            data = response_data(response)
-                            stack = [data]
-                            while stack:
-                                value = stack.pop()
-                                if isinstance(value, dict):
-                                    for key in ("last_price", "lastPrice", "ltp", "LTP"):
-                                        if key in value and float(value[key] or 0) > 0:
-                                            return float(value[key])
-                                    stack.extend(value.values())
-                                elif isinstance(value, list):
-                                    stack.extend(value)
+                            last_price = _extract_ltp_from_response(response)
+                            if last_price > 0:
+                                return last_price
                     except Exception:
                         pass
                 await asyncio.sleep(0.5)
@@ -1629,6 +1668,11 @@ class TradeEngine:
                     tp1_exit_qty=partial_qty[0] if partial_enabled else 0,
                     tp2_exit_qty=partial_qty[1] if partial_enabled else 0,
                     tp3_exit_qty=partial_qty[2] if partial_enabled else 0,
+                    pyramid_enabled=bool(cfg.pyramid_enabled),
+                    pyramid_step_pct=float(cfg.pyramid_step_pct or 0.0),
+                    pyramid_base_qty=qty,
+                    pyramid_max_adds=max(0, int(cfg.pyramid_max_adds or 0)),
+                    pyramid_last_add_price=entry,
                 )
 
                 self.positions[execution_symbol] = pos
@@ -1854,10 +1898,11 @@ class TradeEngine:
                 await self.store.upsert_position(self.user_id, symbol, pos.to_public())
             except Exception:
                 pass
-            try:
-                await self._enable_kill_switch(reason=f"PARTIAL_ORDER_FAIL:{symbol}:{target}")
-            except Exception:
-                pass
+            if not _is_broker_validation_error(e):
+                try:
+                    await self._enable_kill_switch(reason=f"PARTIAL_ORDER_FAIL:{symbol}:{target}")
+                except Exception:
+                    pass
             log.error(
                 "PARTIAL_PROFIT_FAIL | user=%s symbol=%s target=%s qty=%s err=%s",
                 self.user_id,
@@ -1874,6 +1919,123 @@ class TradeEngine:
                 except Exception:
                     pass
             self._partial_inflight[inflight_key] = False
+
+    async def _maybe_pyramid_position(self, pos: Position, ltp: float) -> bool:
+        symbol = norm_symbol(pos.symbol)
+        if (
+            not symbol
+            or not bool(pos.pyramid_enabled)
+            or float(pos.pyramid_step_pct or 0.0) <= 0
+            or int(pos.pyramid_base_qty or 0) <= 0
+            or int(pos.pyramid_add_count or 0) >= int(pos.pyramid_max_adds or 0)
+            or self._pyramid_inflight.get(symbol)
+            or pos.status != "OPEN"
+        ):
+            return False
+
+        last_add = float(pos.pyramid_last_add_price or pos.entry_price or 0.0)
+        if last_add <= 0 or ltp <= 0:
+            return False
+        exit_ceiling = float(pos.tp3_price or pos.target_price or 0.0)
+        exit_floor = float(pos.trail_price or pos.sl_price or 0.0)
+        if pos.side == "BUY":
+            if exit_ceiling > 0 and ltp >= exit_ceiling:
+                return False
+            if exit_floor > 0 and ltp <= exit_floor:
+                return False
+        else:
+            if exit_ceiling > 0 and ltp <= exit_ceiling:
+                return False
+            if exit_floor > 0 and ltp >= exit_floor:
+                return False
+        step = float(pos.pyramid_step_pct) / 100.0
+        trigger = last_add * (1.0 + step) if pos.side == "BUY" else last_add * (1.0 - step)
+        should_add = ltp >= trigger if pos.side == "BUY" else ltp <= trigger
+        if not should_add:
+            return False
+
+        self._pyramid_inflight[symbol] = True
+        try:
+            add_qty = int(pos.pyramid_base_qty)
+            execution = await self._place_order_with_execution(
+                symbol,
+                pos.side,
+                add_qty,
+                pos.product,
+                {
+                    "order_confirm_timeout_sec": 1.5,
+                    "order_pending_retry_count": 1,
+                },
+            )
+            fill_price = float(execution.avg_price or execution.ltp or ltp)
+            old_qty = max(0, int(pos.qty))
+            new_qty = old_qty + add_qty
+            if new_qty <= 0:
+                return False
+            pos.entry_price = ((float(pos.entry_price) * old_qty) + (fill_price * add_qty)) / new_qty
+            pos.qty = new_qty
+            pos.initial_qty = max(int(pos.initial_qty or 0), new_qty)
+            pos.pyramid_add_count = int(pos.pyramid_add_count or 0) + 1
+            pos.pyramid_last_add_price = fill_price
+            pos.pyramid_last_order_id = str(execution.order_id)
+            pos.pyramid_last_error = ""
+            pos.updated_ts = time.time()
+
+            if pos.strategy_mode == "CLASSIC":
+                if pos.cfg_target_pct > 0:
+                    pos.target_price = (
+                        pos.entry_price * (1.0 + pos.cfg_target_pct / 100.0)
+                        if pos.side == "BUY"
+                        else pos.entry_price * (1.0 - pos.cfg_target_pct / 100.0)
+                    )
+                if pos.cfg_sl_pct > 0:
+                    pos.sl_price = (
+                        pos.entry_price * (1.0 - pos.cfg_sl_pct / 100.0)
+                        if pos.side == "BUY"
+                        else pos.entry_price * (1.0 + pos.cfg_sl_pct / 100.0)
+                    )
+
+            if pos.custom_partial_profit_enabled:
+                q1, q2, q3 = _partial_quantities(
+                    int(pos.qty),
+                    float(pos.partial_tp1_pct),
+                    float(pos.partial_tp2_pct),
+                )
+                if not pos.tp1_booked:
+                    pos.tp1_exit_qty = q1
+                if not pos.tp2_booked:
+                    pos.tp2_exit_qty = q2
+                if not pos.tp3_booked:
+                    pos.tp3_exit_qty = q3
+
+            await self.store.upsert_position(self.user_id, symbol, pos.to_public())
+            log.info(
+                "PYRAMID_ADD_OK | user=%s symbol=%s side=%s add_qty=%s total_qty=%s fill=%.2f avg=%.2f count=%s/%s order_id=%s",
+                self.user_id,
+                symbol,
+                pos.side,
+                add_qty,
+                pos.qty,
+                fill_price,
+                pos.entry_price,
+                pos.pyramid_add_count,
+                pos.pyramid_max_adds,
+                execution.order_id,
+            )
+            if self.broadcast_cb:
+                self.broadcast_cb(self.user_id, {"type": "pos_refresh"})
+            return True
+        except Exception as e:
+            pos.pyramid_last_error = str(e)
+            pos.updated_ts = time.time()
+            try:
+                await self.store.upsert_position(self.user_id, symbol, pos.to_public())
+            except Exception:
+                pass
+            log.warning("PYRAMID_ADD_FAIL | user=%s symbol=%s err=%s", self.user_id, symbol, e)
+            return False
+        finally:
+            self._pyramid_inflight[symbol] = False
 
     # =========================
     # Tick ingestion + monitoring (HOT PATH)
@@ -2071,6 +2233,8 @@ class TradeEngine:
                     self._recon_inflight[symbol] = False
 
             asyncio.create_task(_recon(), name=f"recon_{symbol}")
+
+        await self._maybe_pyramid_position(pos, float(ltp))
 
         if pos.strategy_mode in ("PRECISION_SNIPER", "GMMA_OBV", "GMMA_GOLD_CROSS", "LIQUIDITY_SWEEP", "PURE_LIQUIDITY_SWEEP", "GVK_TREND"):
             reason: Optional[str] = None
@@ -2648,11 +2812,14 @@ class TradeEngine:
                         _fmt_pos(pos),
                     )
 
-                    # On exit failure, enable kill switch (prevents new entries). Avoid square-off recursion here.
-                    try:
-                        await self._enable_kill_switch(reason=f"EXIT_ORDER_FAIL:{symbol}")
-                    except Exception as e3:
-                        log.error("KILL_SWITCH_ENABLE_FAIL | user=%s err=%s", self.user_id, e3)
+                    # Broker validation/order rejections should stay local to
+                    # the position. Unexpected infrastructure failures can
+                    # still activate the kill switch.
+                    if not _is_broker_validation_error(e):
+                        try:
+                            await self._enable_kill_switch(reason=f"EXIT_ORDER_FAIL:{symbol}")
+                        except Exception as e3:
+                            log.error("KILL_SWITCH_ENABLE_FAIL | user=%s err=%s", self.user_id, e3)
 
                     try:
                         await self.store.upsert_position(self.user_id, symbol, pos.to_public())

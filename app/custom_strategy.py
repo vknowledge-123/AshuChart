@@ -207,7 +207,10 @@ def validate_gmma_obv_config(cfg: Dict[str, Any]) -> Optional[str]:
 
 
 def resolve_gmma_gold_cross_settings(cfg: Dict[str, Any]) -> Dict[str, Any]:
-    minutes = timeframe_minutes(cfg, 5)
+    # GMMA Gold Cross is intentionally fixed to 5m for live and backtest.
+    # The TradingView indicator/requested execution logic is tuned to 5m
+    # candles and also checks the prior-day 15:00-15:30 crossover window.
+    minutes = 5
     short_defaults = [3, 5, 8, 10, 12, 15]
     long_defaults = [30, 35, 40, 45, 50, 60]
     short_lengths = [
@@ -993,6 +996,46 @@ def evaluate_gmma_gold_cross_strategy(
     prev_s6_cross = _gmma_cross_at(-2, short_emas[5])
     gc = sum(now_crosses[:5]) == 5 and prev_s6_cross <= 0 and now_crosses[5] > 0
     dc = sum(now_crosses[:5]) == -5 and prev_s6_cross >= 0 and now_crosses[5] < 0
+
+    candle_dates: List[Optional[datetime]] = []
+    for candle in candles:
+        stamp = candle.get("date")
+        candle_dates.append(stamp if isinstance(stamp, datetime) else None)
+    distinct_days = sorted({stamp.date() for stamp in candle_dates if isinstance(stamp, datetime)})
+    latest_day = distinct_days[-1] if distinct_days else None
+    previous_day = distinct_days[-2] if len(distinct_days) >= 2 else None
+
+    def _in_gold_cross_window(index: int) -> bool:
+        stamp = candle_dates[index]
+        if not isinstance(stamp, datetime) or latest_day is None:
+            return index == len(candles) - 1
+        local_time = stamp.time()
+        if stamp.date() == latest_day:
+            return True
+        if previous_day is not None and stamp.date() == previous_day:
+            return local_time >= datetime.strptime("15:00", "%H:%M").time() and local_time <= datetime.strptime("15:30", "%H:%M").time()
+        return False
+
+    gc_window = False
+    dc_window = False
+    gc_window_time = ""
+    dc_window_time = ""
+    for i in range(1, len(candles)):
+        if not _in_gold_cross_window(i):
+            continue
+        crosses_i = [_gmma_cross_at(i, series) for series in short_emas]
+        prev_s6_i = _gmma_cross_at(i - 1, short_emas[5])
+        gc_i = sum(crosses_i[:5]) == 5 and prev_s6_i <= 0 and crosses_i[5] > 0
+        dc_i = sum(crosses_i[:5]) == -5 and prev_s6_i >= 0 and crosses_i[5] < 0
+        stamp = candle_dates[i]
+        stamp_text = stamp.isoformat() if isinstance(stamp, datetime) else str(candles[i].get("date") or "")
+        if gc_i:
+            gc_window = True
+            gc_window_time = stamp_text
+        if dc_i:
+            dc_window = True
+            dc_window_time = stamp_text
+
     short_now = [series[-1] for series in short_emas]
     long_now = [series[-1] for series in long_emas]
     trend_up_s = all(short_now[i] > short_now[i + 1] for i in range(len(short_now) - 1))
@@ -1038,6 +1081,10 @@ def evaluate_gmma_gold_cross_strategy(
         "ggc_l6_ema": long_emas[5][-1],
         "ggc_gc": gc,
         "ggc_dc": dc,
+        "ggc_gc_window": gc_window,
+        "ggc_dc_window": dc_window,
+        "ggc_gc_window_time": gc_window_time,
+        "ggc_dc_window_time": dc_window_time,
         "ggc_gc_regime": gc_regime,
         "ggc_dc_regime": dc_regime,
         "ggc_s6_cross": now_crosses[5],
@@ -1059,13 +1106,13 @@ def evaluate_gmma_gold_cross_strategy(
         "entry_mode": str(s["entry_mode"]),
     }
     bull_checks = {
-        "gmma_gc": gc or (regime_mode and gc_regime),
+        "gmma_gc": gc or gc_window or (regime_mode and gc_regime),
         "gc_regime": gc_regime,
         "gmma_trend": trend_up_s and trend_up_l,
         "obv": obv_bull or not require_obv,
     }
     bear_checks = {
-        "gmma_dc": (dc or (regime_mode and dc_regime)) and allow_shorts,
+        "gmma_dc": (dc or dc_window or (regime_mode and dc_regime)) and allow_shorts,
         "dc_regime": dc_regime and allow_shorts,
         "gmma_trend": trend_down_s and trend_down_l and allow_shorts,
         "obv": (obv_bear or not require_obv) and allow_shorts,

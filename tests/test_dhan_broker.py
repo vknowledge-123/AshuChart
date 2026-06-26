@@ -5,6 +5,7 @@ import pandas as pd
 
 from app.dhan_broker import (
     DhanInstrumentRegistry,
+    MarketFeed,
     normalize_dhan_candles,
     normalize_dhan_positions,
     order_id_from_response,
@@ -124,6 +125,8 @@ class DhanBrokerTests(unittest.TestCase):
 
         self.assertEqual(result["security_id"], "9001")
         self.assertEqual(result["option_type"], "CE")
+        self.assertEqual(registry.symbol("9001"), "BANKNIFTY26JUN54000CE")
+        self.assertEqual(registry.feed_segment("9001"), MarketFeed.NSE_FNO)
 
 
 class DhanTradeEngineTests(unittest.IsolatedAsyncioTestCase):

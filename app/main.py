@@ -675,18 +675,27 @@ async def start_dhan_feed(user_id: int) -> None:
         if loop is None:
             return
 
+        def pick(*keys: str, default: Any = 0) -> Any:
+            for key in keys:
+                value = packet.get(key)
+                if value not in (None, ""):
+                    return value
+            return default
+
         async def handle() -> None:
             try:
-                security_id = int(packet.get("security_id") or 0)
+                security_id = int(pick("security_id", "securityId", "SecurityId", "SECURITY_ID", default=0) or 0)
                 symbol = TOKEN_TO_SYMBOL.get(security_id) or DHAN_INSTRUMENTS.symbol(security_id)
                 if not symbol:
                     return
-                ltp = float(packet.get("LTP") or 0.0)
-                close = float(packet.get("close") or 0.0)
-                high = float(packet.get("high") or ltp)
-                low = float(packet.get("low") or ltp)
-                tbq = float(packet.get("total_buy_quantity") or 0.0)
-                tsq = float(packet.get("total_sell_quantity") or 0.0)
+                ltp = float(pick("LTP", "ltp", "last_price", "lastPrice", "last_traded_price", default=0.0) or 0.0)
+                close = float(pick("close", "Close", "prev_close", "previous_close", default=0.0) or 0.0)
+                high = float(pick("high", "High", "day_high", default=ltp) or ltp)
+                low = float(pick("low", "Low", "day_low", default=ltp) or ltp)
+                tbq = float(pick("total_buy_quantity", "totalBuyQuantity", default=0.0) or 0.0)
+                tsq = float(pick("total_sell_quantity", "totalSellQuantity", default=0.0) or 0.0)
+                if ltp <= 0:
+                    return
                 eng = await ensure_engine(user_id)
                 pos = await eng.on_tick(symbol, ltp, close, high, low, tbq, tsq)
                 ws_mgr.broadcast_nowait(
@@ -1300,6 +1309,16 @@ async def save_alert_config(payload: Dict[str, Any]) -> Dict[str, Any]:
         return {"error": "ORDER_EXECUTION_SETTINGS_INVALID"}
     if not (0.2 <= order_timeout <= 10.0 and 0 <= order_retries <= 5):
         return {"error": "ORDER_EXECUTION_SETTINGS_INVALID"}
+    try:
+        pyramid_step = float(payload.get("pyramid_step_pct") or 0.8)
+        pyramid_max = int(payload.get("pyramid_max_adds") or 0)
+    except Exception:
+        return {"error": "PYRAMID_SETTINGS_INVALID"}
+    pyramid_enabled = str(payload.get("pyramid_enabled", "false")).lower() in {"1", "true", "yes", "on"}
+    if not (0.05 <= pyramid_step <= 20.0 and 0 <= pyramid_max <= 20):
+        return {"error": "PYRAMID_SETTINGS_INVALID"}
+    if pyramid_enabled and pyramid_max < 1:
+        return {"error": "PYRAMID_SETTINGS_INVALID"}
     if strategy_mode == "PRECISION_SNIPER":
         custom_error = validate_custom_config(payload)
         if custom_error:
@@ -1713,6 +1732,15 @@ async def chartink_webhook(request: Request, user_id: int = 1) -> Dict[str, Any]
         print(f"🔥 [WEBHOOK_PANIC] Critical Trade Engine Error: {e}")
         await store.set_kill(user_id, True)
         res = [{"symbol": s, "status": "ERROR", "reason": f"CRITICAL_FAIL:{e}"} for s in symbols]
+
+    execution_symbols = [
+        _sym_safe(str(row.get("execution_symbol") or ""))
+        for row in (res or [])
+        if isinstance(row, dict) and str(row.get("status") or "").upper() == "ENTERED"
+    ]
+    execution_symbols = [s for s in execution_symbols if s and s not in symbols]
+    if execution_symbols:
+        asyncio.create_task(subscribe_symbols_for_user(user_id, execution_symbols))
 
     # Preserve ordering: ensure the RECEIVED row exists before updating results.
     try:

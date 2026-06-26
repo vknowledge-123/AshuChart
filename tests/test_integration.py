@@ -36,6 +36,9 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn('id="cfg_strategy_mode"', r.text)
         self.assertIn('id="cfg_order_timeout"', r.text)
         self.assertIn('id="cfg_order_retries"', r.text)
+        self.assertIn('id="cfg_pyramid_on"', r.text)
+        self.assertIn('id="cfg_pyramid_step"', r.text)
+        self.assertIn('id="cfg_pyramid_max"', r.text)
         self.assertIn('value="GMMA_OBV"', r.text)
         self.assertIn('id="gmmaObvPanel"', r.text)
         self.assertIn('value="GMMA_GOLD_CROSS"', r.text)
@@ -233,6 +236,9 @@ class IntegrationTests(unittest.TestCase):
             "strategy_mode": "GMMA_OBV",
             "order_confirm_timeout_sec": 1.5,
             "order_pending_retry_count": 1,
+            "pyramid_enabled": True,
+            "pyramid_step_pct": 0.8,
+            "pyramid_max_adds": 3,
             "gmma_adx_min": 21,
             "gmma_adx_len": 14,
             "gmma_atr_len": 14,
@@ -250,6 +256,8 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(r.json()["status"], "saved")
         self.assertEqual(r.json()["config"]["strategy_mode"], "GMMA_OBV")
         self.assertEqual(r.json()["config"]["order_pending_retry_count"], 1)
+        self.assertEqual(r.json()["config"]["pyramid_enabled"], True)
+        self.assertEqual(r.json()["config"]["pyramid_step_pct"], 0.8)
 
     def test_gmma_obv_rejects_invalid_targets(self) -> None:
         r = self.client.post(

@@ -28,6 +28,7 @@ from app.trade_engine import (
     AlertConfig,
     MarketDataWorker,
     OrderWorker,
+    OrderExecution,
     Position,
     TradeEngine,
     _partial_quantities,
@@ -89,12 +90,49 @@ class CustomStrategyTests(unittest.TestCase):
 
     def test_gmma_gold_cross_defaults_and_validation(self) -> None:
         settings = resolve_gmma_gold_cross_settings({"strategy_timeframe_minutes": 15})
-        self.assertEqual(settings["preset"], "GMMA_GOLD_CROSS_15M")
-        self.assertEqual(settings["timeframe"], "15minute")
+        self.assertEqual(settings["preset"], "GMMA_GOLD_CROSS_5M")
+        self.assertEqual(settings["timeframe"], "5minute")
         self.assertEqual(settings["short_lengths"], [3, 5, 8, 10, 12, 15])
         self.assertEqual(settings["long_lengths"], [30, 35, 40, 45, 50, 60])
         error = validate_gmma_gold_cross_config({"ggc_tp1_mult": 2, "ggc_tp2_mult": 1, "ggc_tp3_mult": 3})
         self.assertEqual(error, "GMMA_GOLD_CROSS_TP_MULTIPLIERS_INVALID")
+
+    def test_gmma_gold_cross_accepts_previous_day_closing_window_cross(self) -> None:
+        previous_day = datetime(2026, 6, 18, 9, 15)
+        candles = []
+        for i in range(75):
+            close = 100.0 if i < 69 else 100 + (i - 68) * 3
+            candles.append(
+                {
+                    "date": previous_day + timedelta(minutes=5 * i),
+                    "open": close - 0.2,
+                    "high": close + 0.5,
+                    "low": close - 0.5,
+                    "close": close,
+                    "volume": 1000 + i * 10,
+                }
+            )
+        current_day = datetime(2026, 6, 19, 9, 15)
+        base = candles[-1]["close"]
+        for i in range(40):
+            close = base + (i + 1) * 2
+            candles.append(
+                {
+                    "date": current_day + timedelta(minutes=5 * i),
+                    "open": close - 0.2,
+                    "high": close + 0.5,
+                    "low": close - 0.5,
+                    "close": close,
+                    "volume": 2000 + i * 10,
+                }
+            )
+
+        signal, meta = evaluate_gmma_gold_cross_strategy(candles, {"ggc_require_obv": False})
+
+        self.assertIsNotNone(signal)
+        self.assertEqual(signal.side, "BUY")
+        self.assertTrue(meta["indicators"]["ggc_gc_window"])
+        self.assertIn("2026-06-18T15:00:00", meta["indicators"]["ggc_gc_window_time"])
 
     def test_gmma_gold_cross_regime_with_obv_disabled_creates_signal(self) -> None:
         start = datetime(2026, 6, 12, 9, 15)
@@ -637,6 +675,106 @@ class TradeEngineIntegrationTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(skipped[0]["reason"], "ALREADY_OPEN")
         self.assertEqual(entered[0]["status"], "ENTERED")
+
+    async def test_classic_pyramiding_adds_base_quantity_and_exits_all(self) -> None:
+        store = InMemoryStore()
+        engine = TradeEngine(1, store)
+        position = Position(
+            trade_id="pyramid-classic",
+            user_id=1,
+            symbol="SBIN",
+            alert_name="classic",
+            side="BUY",
+            product="MIS",
+            qty=10,
+            initial_qty=10,
+            entry_price=100,
+            target_price=120,
+            sl_price=95,
+            cfg_target_pct=20,
+            cfg_sl_pct=5,
+            pyramid_enabled=True,
+            pyramid_step_pct=0.8,
+            pyramid_base_qty=10,
+            pyramid_max_adds=2,
+            pyramid_last_add_price=100,
+        )
+        engine.positions["SBIN"] = position
+        await store.upsert_position(1, "SBIN", position.to_public())
+        await store.mark_open(1, "SBIN", position.trade_id)
+        engine._place_order_with_execution = AsyncMock(
+            return_value=OrderExecution(
+                order_id="PYR-1",
+                symbol="SBIN",
+                side="BUY",
+                qty=10,
+                status="COMPLETE",
+                avg_price=100.9,
+                filled_qty=10,
+            )
+        )
+        engine._exit_position = AsyncMock()
+
+        await engine.on_tick("SBIN", 100.9, 100, 101, 100)
+
+        self.assertEqual(position.qty, 20)
+        self.assertEqual(position.pyramid_add_count, 1)
+        self.assertEqual(position.pyramid_last_order_id, "PYR-1")
+        self.assertAlmostEqual(position.entry_price, 100.45)
+        self.assertAlmostEqual(position.target_price, 120.54)
+
+        await engine.on_tick("SBIN", 121, 100, 121, 120)
+        await asyncio.sleep(0)
+        engine._exit_position.assert_awaited_once_with("SBIN", "TARGET")
+        self.assertEqual(position.status, "EXITING")
+        self.assertEqual(position.qty, 20)
+
+    async def test_custom_strategy_pyramiding_adds_before_custom_exit_checks(self) -> None:
+        store = InMemoryStore()
+        engine = TradeEngine(1, store)
+        position = Position(
+            trade_id="pyramid-custom",
+            user_id=1,
+            symbol="SBIN",
+            alert_name="sniper",
+            side="BUY",
+            product="MIS",
+            qty=5,
+            initial_qty=5,
+            entry_price=100,
+            strategy_mode="PRECISION_SNIPER",
+            signal_price=100,
+            sl_price=95,
+            trail_price=95,
+            tp1_price=110,
+            tp2_price=115,
+            tp3_price=120,
+            pyramid_enabled=True,
+            pyramid_step_pct=1,
+            pyramid_base_qty=5,
+            pyramid_max_adds=1,
+            pyramid_last_add_price=100,
+        )
+        engine.positions["SBIN"] = position
+        await store.upsert_position(1, "SBIN", position.to_public())
+        await store.mark_open(1, "SBIN", position.trade_id)
+        engine._place_order_with_execution = AsyncMock(
+            return_value=OrderExecution(
+                order_id="PYR-CUSTOM",
+                symbol="SBIN",
+                side="BUY",
+                qty=5,
+                status="COMPLETE",
+                avg_price=101.1,
+                filled_qty=5,
+            )
+        )
+
+        await engine.on_tick("SBIN", 101.1, 100, 102, 100)
+
+        self.assertEqual(position.qty, 10)
+        self.assertEqual(position.pyramid_add_count, 1)
+        self.assertEqual(position.pyramid_last_order_id, "PYR-CUSTOM")
 
     async def test_custom_target_ladder_updates_trail_and_exits_at_tp3(self) -> None:
         store = InMemoryStore()
